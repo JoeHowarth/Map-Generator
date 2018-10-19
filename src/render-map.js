@@ -17,10 +17,11 @@ const land2 = d3.interpolateRgbBasis([
 ])
 const water = d3.interpolateRgb('#0084b8','#0003b8')
 function heightToColor(h) {
-  if (h > 0) {
+  if (h >= 0) {
     return land2(h)
   }
   return water(-h * 2)
 }
+
 
 export {heightToColor}

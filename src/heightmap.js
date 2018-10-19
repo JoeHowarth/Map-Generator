@@ -11,6 +11,7 @@ function genHM(mesh) {
     // mountains(mesh, 50, 50, 0.5),
     mountains(mesh, 20, 40, 0.4),
     mountains(mesh, 5, 150, 0.4),
+    mountains(mesh, 5, 150, 0.8),
     mountains(mesh, 2, 350, 0.1),
   );
   for (let i = 0; i < 5; i++) {
@@ -18,16 +19,16 @@ function genHM(mesh) {
   }
   h = peaky(h);
   // h = normalize(h);
-  h = doErosion(mesh, h, rand(0.05, 0.2) + 0.1, 8);
+  // h = doErosion(mesh, h, rand(0.05, 0.2), 8);
   // h = setSeaLevel(mesh, h, rand(0.1, 0.2));
-  h = setSeaLevel(mesh, h, 0.35);
-  console.log("after sea: ", h)
-  h = normalize(h, 0.01)
-  console.log("after norm: ", h)
-  console.log("min, max", d3.min(h), d3.max(h))
+  // h = setSeaLevel(mesh, h, 0.35);
+  // console.log("after sea: ", h)
+  // h = normalize(h, 0.01)
+  // console.log("after norm: ", h)
+  // console.log("min, max", d3.min(h), d3.max(h))
 
-  h = fillSinks(mesh, h);
-  h = cleanCoast(mesh, h, 3);
+  // h = fillSinks(mesh, h);
+  // h = cleanCoast(mesh, h, 3);
   return h;
 
 }
@@ -36,7 +37,7 @@ function mountains(mesh, n, r, h) {
   r = r || 100;
   h = h || 1;
   let mounts = [];
-  const { points } = mesh
+  const { centroids } = mesh
   const W = mesh.xmax - mesh.xmin,
     H = mesh.ymax - mesh.ymin
   for (let i = 0; i < n; i++) {
@@ -50,7 +51,7 @@ function mountains(mesh, n, r, h) {
   // console.log(mounts)
   let newvals = mesh.zero();
   for (let i = 0; i < newvals.length; i++) {
-    let p = mesh.point(i)
+    let p = centroids[i]
     for (let j = 0; j < n; j++) {
       let m = mounts[j];
       const dist = ((p[0] - m[0]) * (p[0] - m[0]) + (p[1] - m[1]) * (p[1] - m[1]))
@@ -102,9 +103,10 @@ function peaky(h) {
 
 
 function downhill(mesh, h) {
-  if (h.downhill) return h.downhill;
+  // if (h.downhill) return h.downhill;
 
   function downFrom(i) {
+    console.log(i, mesh.isEdge(i))
     if (mesh.isEdge(i)) return -2
     let best = -1
     let besth = h[i]
@@ -148,13 +150,20 @@ function getSlope(mesh, h) {
   let dh = downhill(mesh, h);
   let slope = mesh.zero()
   for (let i = 0; i < h.length; i++) {
-    // let s = trislope(h, i);
+    // let s = mesh.trislope(h, i);
     // slope[i] = Math.sqrt(s[0] * s[0] + s[1] * s[1]);
+    //
+    // if (slope[i] > 1) {
+    //   if (mesh.isNearEdge(i)) {
+    //     slope[i] = 1.0
+    //   }
+    //   slope[i] = 2.0
+    // }
     // continue;
     if (dh[i] < 0) {
       slope[i] = 0;
     } else {
-      slope[i] = (h[i] - h[dh[i]]) / mesh.distance(i, dh[i]) * 10;
+      slope[i] = (h[i] - h[dh[i]]) / mesh.distance(i, dh[i]) ;
     }
   }
   return slope;
@@ -317,5 +326,5 @@ export {
   downhill,
   mountains,
   quantile,
-  setSeaLevel
+  setSeaLevel,
 }

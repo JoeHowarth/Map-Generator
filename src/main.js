@@ -8,6 +8,10 @@ import poissonDiscSampler from './poissonDiscSampler'
 import * as HM from './heightmap'
 import { genHM } from './heightmap'
 import { heightToColor } from './render-map'
+import { normalize } from './heightmap'
+import { getSlope } from './heightmap'
+import { erosionRate } from './heightmap'
+import { peaky } from './heightmap'
 
 const { edge2tri, tri2edge, prevEdge, nextEdge, makeMesh } = m;
 
@@ -29,71 +33,82 @@ var canvas,
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = setup(10)
+  mesh = setup(50)
 
   const { points, triangles, halfedges } = mesh
 
-  // let m = add(
-  //   HM.mountains(mesh, 2, 150.1, 0.8),
-  //   HM.mountains(mesh, 2, 350.1, 0.4),
-  //   HM.mountains(mesh, 5, 101, 1.0),
-  //   HM.mountains(mesh, 10, 71, .4),
-  //   HM.cone(mesh, 0.0015),
-  // )
-  // m = peaky(m)
-  // m = mesh.relax(m)
-  // let dh = downhill(mesh, m)
-
-  // setInterval(() => {
-  //   ctx.beginPath()
-    // const l = ctx.lineWidth
-    // ctx.lineWidth = 1
-    // ctx.strokeStyle = 'rgb(0,155,0)'
-    // for (let i = 0; i < dh.length; i++) {
-    //   ctx.moveTo(points[i * 2], points[i * 2 + 1])
-    //   const d = dh[i] * 2
-    //   ctx.lineTo(points[d], points[d + 1])
-    // }
-    // ctx.stroke()
-    // ctx.lineWidth = l
-  // }, 200)
   console.log(mesh)
 
   let m = genHM(mesh)
+  mesh.renderMesh(m)
 
-  let flux = HM.getFlux(mesh, m)
+  // let flux = HM.getFlux(mesh, m)
   // console.log('flux', flux)
 
-  console.log(d3.max(m), d3.max(flux))
-  let f = HM.peaky(flux)
+  // console.log(d3.max(m), d3.max(flux))
+  // let f = HM.peaky(flux)
 
 
   // m = erode(mesh, m)
-  // const er = erosionRate(mesh, m)
-  // let slope = getSlope(mesh, m)
-  // console.log(slope)
+  let er = erosionRate(mesh, m)
+  // console.log(er)
+
+  let slope = getSlope(mesh, m)
+  console.log("slope",d3.max(slope), d3.min(slope),d3.median(slope), slope[1], slope[20])
   // let slope_vis = normalize(slope)
+  let slope_vis = peaky(slope)
+
+  mesh.renderMesh(slope_vis)
+  ctx.beginPath()
+  mesh.delaunay.render(ctx)
+  ctx.stroke()
+
+  let f, eh = m.slice()
+
+  ctx.fillStyle = '#000000'
+  mesh.centroids.forEach(([x,y]) => {
+    ctx.beginPath()
+
+    ctx.fillRect(x-7,y-7, 14, 14)
+    ctx.fill()
+
+  })
+
+  mesh.adj.forEach((_,i) => showNeighbors(mesh,i))
+  mesh.renderVor()
+  // mesh.renderMesh(m)
 
 
-  mesh.renderMesh(m, {cfn: heightToColor, a: 0.9})
-  mesh.renderVor({ alpha: 0.1 })
+
 
   // alternate([
-  //   () => mesh.renderMesh(m, {cfn: heightToColor, a: 0.9}),
-    // () => mesh.renderMesh(m, {cfn: d3.interpolateMagma, a: 0.9}),
+    // () => mesh.renderMesh(m, {a: 0.9}),
+    // () => mesh.renderMesh(f, {a: 0.9}),
     // () => mesh.renderMesh(er, 0.9),
     // () => {
-    //   eh = doErosion(mesh, eh, 0.02, 3)
-    //   f = peaky(getFlux(mesh, eh));
-    //   mesh.renderMesh(eh, {cfn: d3.interpolateMagma, a: 0.9})
+    //   eh = HM.doErosion(mesh, eh, 0.01, 1)
+    //   f = HM.peaky(HM.getFlux(mesh, eh));
+    //   mesh.renderMesh(eh, {a: 0.9})
     // },
     // () => mesh.renderMesh(slope_vis, 0.9),
-  // ], 1500)
+  // ], 200000)
 
   // console.log(m)
 
   window.Vor = vor;
 });
+
+function showNeighbors(mesh, i) {
+  const nbs = mesh.adj[i]
+  const [x,y] = mesh.centroids[i]
+  nbs.forEach(j => {
+    ctx.beginPath()
+    ctx.moveTo(x,y)
+    const [x1, y1] = mesh.centroids[j]
+    ctx.lineTo(x1, y1)
+    ctx.stroke()
+  })
+}
 
 
 function setup(density = 20) {
@@ -106,6 +121,7 @@ function setup(density = 20) {
   ctx.font = '18px serif';
 
   console.log('W, H', W, H)
+
   sampler = poissonDiscSampler(W * 0.95, H * 0.95, density);
 
   let points = [];
