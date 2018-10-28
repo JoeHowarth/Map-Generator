@@ -1,4 +1,5 @@
 # Goals 
+
 ### Short term (in js)
  - Create small continent size maps 
  - Semi-realistic heightmap 

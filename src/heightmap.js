@@ -70,7 +70,6 @@ function slope(mesh, dir, steepness) {
     return pt[0] * dir[0] + pt[1] * dir[1]
   })
   return normalize(h)
-
 }
 
 function quantile(h, q) {
