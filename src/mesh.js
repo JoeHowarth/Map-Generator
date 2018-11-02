@@ -111,12 +111,14 @@ function makeMesh(vor, ctx) {
 
 
 
-  mesh.renderVor = ({color, alpha, del} = {}) => {
+  mesh.renderVor = ({color, alpha, del, thickness} = {}) => {
     ctx.stroke()
+    ctx.lineWidth = thickness? thickness : 1
     ctx.strokeStyle = color? color : 'rgb(0,0,0)'
     ctx.globalAlpha = alpha? alpha : 1
     del? vor.delaunay.render(ctx) : vor.render(ctx)
     ctx.stroke()
+    ctx.lineWidth = 1
     ctx.globalAlpha = 1
   }
 

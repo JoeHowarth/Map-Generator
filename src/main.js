@@ -29,7 +29,7 @@ var canvas,
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = setup(10)
+  mesh = setup(50)
 
   const { points, triangles, halfedges } = mesh
 
@@ -75,8 +75,9 @@ document.addEventListener('DOMContentLoaded', async function (event) {
   // let slope_vis = normalize(slope)
 
 
-  mesh.renderMesh(m, {cfn: heightToColor, a: 0.9})
-  mesh.renderVor({ alpha: 0.1 })
+  // mesh.renderMesh(m, {cfn: heightToColor, a: 0.9})
+  mesh.renderVor({ thickness: 5, color: 'rgb(0,255, 255)', alpha: 1.0 })
+  mesh.renderVor({ del: true, alpha: 1.0 })
 
   // alternate([
   //   () => mesh.renderMesh(m, {cfn: heightToColor, a: 0.9}),
