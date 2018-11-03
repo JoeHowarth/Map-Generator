@@ -1,34 +1,35 @@
-import { add, rand, randomVector } from './map-utils'
+import { add, rand } from './map-utils'
 import * as d3 from 'd3'
-import * as mesh from 'd3-delaunay'
 
 
 function genHM(mesh) {
   // let mesh = generateGoodMesh(params.npts, params.extent);
   let h = add(
-    // slope(mesh, [0.5, 0.5], 0.9),
+    slope(mesh, [0.5, 0.5], 0.9),
     // cone(mesh, rand(-1.0, -0.5) * 0.0001),
-    // mountains(mesh, 50, 50, 0.5),
+    mountains(mesh, 50, 50, 0.5),
     mountains(mesh, 20, 40, 0.4),
     mountains(mesh, 5, 150, 0.4),
     mountains(mesh, 5, 150, 0.8),
     mountains(mesh, 2, 350, 0.1),
   );
+  console.log("h after mountains", h)
   for (let i = 0; i < 5; i++) {
     h = mesh.relax(h);
   }
-  h = peaky(h);
-  // h = normalize(h);
-  // h = doErosion(mesh, h, rand(0.05, 0.2), 8);
+  // h = peaky(h);
+  // h = fillSinks(mesh, h)
+  h = normalize(h);
+  h = doErosion(mesh, h, rand(0.02, 0.1), 1);
   // h = setSeaLevel(mesh, h, rand(0.1, 0.2));
-  // h = setSeaLevel(mesh, h, 0.35);
+  h = setSeaLevel(mesh, h, 0.35);
   // console.log("after sea: ", h)
   // h = normalize(h, 0.01)
   // console.log("after norm: ", h)
   // console.log("min, max", d3.min(h), d3.max(h))
 
-  // h = fillSinks(mesh, h);
-  // h = cleanCoast(mesh, h, 3);
+  h = fillSinks(mesh, h);
+  h = cleanCoast(mesh, h, 3);
   return h;
 
 }
@@ -49,24 +50,28 @@ function mountains(mesh, n, r, h) {
   // mounts.forEach(v => ctx.fillRect(v[0] - 2, v[1] - 2, rsqrt, rsqrt))
 
   // console.log(mounts)
-  let newvals = mesh.zero();
-  for (let i = 0; i < newvals.length; i++) {
+  let newvals = mesh.zero().map((_,i) => {
     let p = centroids[i]
+    let sum = 0
     for (let j = 0; j < n; j++) {
       let m = mounts[j];
       const dist = ((p[0] - m[0]) * (p[0] - m[0]) + (p[1] - m[1]) * (p[1] - m[1]))
       const exp = Math.exp(-dist / (2 * r * r))
-      newvals[i] += Math.pow(exp * h, 2);
+      sum += Math.pow(exp * h, 2)
     }
-  }
+    return sum
+  })
+  // console.log("newvals in mountains",newvals)
   return newvals;
 }
 
 function slope(mesh, dir, steepness) {
-  let len = dir[0] * dir[0] + dir[1] * dir[1]
+  // unit vector
+  let len = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1])
   dir = [dir[0] / len, dir[1] / len]
   let h = mesh.map((pt, i) => {
-     // dir is unit vec now
+    // dir is unit vec now
+    // console.log("in slope (not getslope)", pt, dir)
     return pt[0] * dir[0] + pt[1] * dir[1]
   })
   return normalize(h)
@@ -80,7 +85,8 @@ function quantile(h, q) {
 
 function cone(mesh, slope) {
   let [Cx, Cy] = mesh.extent.slice()
-  Cx /= 2; Cy /= 2;
+  Cx /= 2;
+  Cy /= 2;
   return mesh.map(v => {
     const x = (v[0] - Cx)
     const y = (v[1] - Cy)
@@ -103,9 +109,9 @@ function peaky(h) {
 
 function downhill(mesh, h) {
   // if (h.downhill) return h.downhill;
+  console.log("h in downHill", h)
 
   function downFrom(i) {
-    console.log(i, mesh.isEdge(i))
     if (mesh.isEdge(i)) return -2
     let best = -1
     let besth = h[i]
@@ -121,17 +127,15 @@ function downhill(mesh, h) {
     return best
   }
 
-  let downs = new Array(h.length)
-  for (let i = 0; i < h.length; i++) {
-    downs[i] = downFrom(i)
-  }
+  let downs = h.map((v, i) => downFrom(i))
   h.downhill = downs
   return downs
 }
 
 function getFlux(mesh, h) {
+  console.log("h in getflux", h)
   const dh = downhill(mesh, h);
-  let idxs = h.map((_, i) => i)
+  let idxs = mesh.triIDs.map((v, i) => i)
   let flux = h.map((_, i) => 1 / h.length)
   // console.log('flux', flux)
   idxs.sort((a, b) => h[b] - h[a])
@@ -147,32 +151,33 @@ function getFlux(mesh, h) {
 // redefining slope to use with tri-vertices not triangles
 function getSlope(mesh, h) {
   let dh = downhill(mesh, h);
-  let slope = mesh.zero()
-  for (let i = 0; i < h.length; i++) {
-    // let s = mesh.trislope(h, i);
-    // slope[i] = Math.sqrt(s[0] * s[0] + s[1] * s[1]);
-    //
-    // if (slope[i] > 1) {
-    //   if (mesh.isNearEdge(i)) {
-    //     slope[i] = 1.0
-    //   }
-    //   slope[i] = 2.0
-    // }
-    // continue;
-    if (dh[i] < 0) {
-      slope[i] = 0;
-    } else {
-      slope[i] = (h[i] - h[dh[i]]) / mesh.distance(i, dh[i]) ;
-    }
-  }
-  return slope;
+  return mesh.zero()
+    .map((v, i) => {
+      let s = mesh.trislope(h, i);
+      // console.log(s)
+      let slope= Math.sqrt(s[0] * s[0] + s[1] * s[1]);
+
+      if (slope > 3) {
+        if (mesh.isNearEdge(i)) {
+          return 1.0
+        }
+        return 3.0
+      }
+      return slope;
+      if (dh[i] < 0) {
+        return 0;
+      } else {
+        // console.log(h[i] - h[dh[i]], i, dh[i], mesh.distance(i, dh[i]))
+        return (h[i] - h[dh[i]]) / mesh.distance(i, dh[i]);
+      }
+    });
 }
 
 function erosionRate(mesh, h) {
   let flux = getFlux(mesh, h);
   let slope = getSlope(mesh, h);
   let newh = mesh.zero()
-  for (let i = 0; i < h.length; i++) {
+  for (let i = 0; i < newh.length; i++) {
     let river = Math.sqrt(flux[i]) * slope[i];
     let creep = slope[i] * slope[i];
     let total = 1000 * river + creep;
@@ -184,12 +189,10 @@ function erosionRate(mesh, h) {
 
 function erode(mesh, h, amount) {
   let er = erosionRate(mesh, h);
-  let newh = mesh.zero()
   let maxr = d3.max(er);
-  for (let i = 0; i < h.length; i++) {
-    newh[i] = h[i] - amount * (er[i] / maxr);
-  }
-  return newh;
+
+  return mesh.zero()
+    .map((v, i) => h[i] - amount * (er[i] / maxr));
 }
 
 function doErosion(mesh, h, amount, n) {
@@ -204,8 +207,7 @@ function doErosion(mesh, h, amount, n) {
 
 function findSinks(mesh, h) {
   let dh = downhill(h);
-  let sinks = [];
-  for (let i = 0; i < dh.length; i++) {
+  let sinks = mesh.triIDs.map((v,i) => {
     let node = i;
     while (true) {
       if (mesh.isEdge(node)) {
@@ -218,23 +220,26 @@ function findSinks(mesh, h) {
       }
       node = dh[node];
     }
-  }
+  });
+  return sinks
 }
 
 function fillSinks(mesh, h, epsilon) {
   epsilon = epsilon || 1e-5;
   let infinity = 999999;
-  let newh = mesh.zero()
-  for (let i = 0; i < h.length; i++) {
+  let newh = mesh.zero().map((v,i) => {
     if (mesh.isNearEdge(i)) {
-      newh[i] = h[i];
+      return h[i];
     } else {
-      newh[i] = infinity;
+      return infinity;
     }
-  }
-  while (true) {
+  })
+  console.log("fillSinks, init newh", newh)
+  let c = 0
+  while (c < 200) {
+    c +=1
     let changed = false;
-    for (let i = 0; i < h.length; i++) {
+    for (let i = 0; i < newh.length; i++) {
       if (newh[i] === h[i]) continue;
       let nbs = mesh.adj[i]
       for (let j = 0; j < nbs.length; j++) {
@@ -257,12 +262,12 @@ function fillSinks(mesh, h, epsilon) {
 function setSeaLevel(mesh, h, q) {
   let newh = mesh.zero()
   let delta = quantile(h, q);
-  console.log("delta", delta)
-  console.log("min, max", d3.min(h), d3.max(h))
-  for (let i = 0; i < h.length; i++) {
+  console.log('delta', delta)
+  console.log('min, max', d3.min(h), d3.max(h))
+  for (let i = 0; i < newh.length; i++) {
     newh[i] = h[i] - delta;
   }
-  console.log("min, max", d3.min(newh), d3.max(newh))
+  console.log('min, max', d3.min(newh), d3.max(newh))
   return newh;
 }
 
@@ -326,4 +331,5 @@ export {
   mountains,
   quantile,
   setSeaLevel,
+  cleanCoast,
 }
