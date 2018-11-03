@@ -34,7 +34,7 @@ var canvas,
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = setup(50)
+  mesh = setup(130)
 
   const { points, triangles, halfedges } = mesh
 
@@ -55,10 +55,8 @@ document.addEventListener('DOMContentLoaded', async function (event) {
   // let m1 = genHM(mesh1)
   // let m2 = genHM(mesh2)
 
-  console.log("m from main", m)
 
   let flux = HM.getFlux(mesh, m)
-  console.log('flux', flux)
 
   console.log(d3.max(m), d3.max(flux))
   let f = HM.peaky(flux)
@@ -66,14 +64,11 @@ document.addEventListener('DOMContentLoaded', async function (event) {
 
   // m = erode(mesh, m)
   let er = erosionRate(mesh, m)
-  console.log(er)
 
   let slope = getSlope(mesh, m)
-  console.log('slope', d3.max(slope), d3.min(slope), d3.median(slope), slope[1], slope[20], slope)
   let slope_vis = normalize(slope)
   // let slope_vis = peaky(slope)
 
-  mesh.renderMesh(slope_vis)
 
   // mesh.renderVor({ color: '#440000' });
 
@@ -92,8 +87,8 @@ document.addEventListener('DOMContentLoaded', async function (event) {
   let m1 = m.slice()
 
   // renderCentroid(mesh3)
-  mesh.adj.forEach((_,i) => showNeighbors(mesh,i))
-  if (true) {
+
+  if (false) {
     alternate([
       // () => {
         // mesh.renderMesh(slope_vis);
@@ -107,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async function (event) {
       () => {
         mesh.renderDel()
         m1 = HM.doErosion(mesh, m1, 0.07, 1);
-        m1 = HM.cleanCoast(mesh, m1, 3)
+        m1 = HM.cleanCoast(mesh, m1, 1)
         er = HM.erosionRate(mesh, m1)
         flux = HM.getFlux(mesh, m1)
         mesh.renderMesh(m1)
@@ -120,7 +115,10 @@ document.addEventListener('DOMContentLoaded', async function (event) {
       //   mesh.renderMesh(peaky(flux))
       // }
     ], 2500)
-
+  }
+  else {
+    mesh.renderDel()
+    mesh.renderMesh(m)
   }
 
   /*
@@ -216,7 +214,7 @@ function setup(density = 20) {
   sampler = poissonDiscSampler(W * 0.95, H * 0.95, density);
 
   let points = [];
-  let num_points = 100000;
+  let num_points = 1000000;
   // let pts = await getPoisson(num_per_gen, sampler);
   let i = 0
   for (let s; i < num_points && (s = sampler()); i++) {

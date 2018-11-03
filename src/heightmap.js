@@ -14,7 +14,7 @@ function genHM(mesh) {
     mountains(mesh, 2, 350, 0.1),
   );
   console.log("h after mountains", h)
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 0; i++) {
     h = mesh.relax(h);
   }
   // h = peaky(h);
@@ -24,7 +24,7 @@ function genHM(mesh) {
   // h = setSeaLevel(mesh, h, rand(0.1, 0.2));
   h = setSeaLevel(mesh, h, 0.35);
   // console.log("after sea: ", h)
-  // h = normalize(h, 0.01)
+  h = normalize(h, 0.01)
   // console.log("after norm: ", h)
   // console.log("min, max", d3.min(h), d3.max(h))
 

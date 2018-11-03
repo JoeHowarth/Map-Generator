@@ -9,6 +9,10 @@ const angCutoff = 3.14 * 0.7
 
 function makeMesh(vor, ctx) {
 
+  console.log("in make mesh")
+  console.time("makeMesh")
+  console.time("goodTris")
+
   let mesh = Object.create(vor.__proto__);
   Object.assign(mesh, vor);
   Object.assign(mesh, vor.delaunay)
@@ -38,15 +42,23 @@ function makeMesh(vor, ctx) {
 
   mesh.extent = [+vor.xmax - +vor.xmin, +vor.ymax - +vor.ymin]
   mesh.triIDs = new Uint32Array(goodTris)
+  let invTriIds = new Map()
+  for (let i = 0; i < mesh.triIDs.length; i++) {
+    invTriIds.set(mesh.triIDs[i], i)
+  }
 
+  console.timeEnd("goodTris")
+
+  console.time("adj")
   // adjacent tris to each tri
   let adj = []
   let adj_ = []
   for (let i = 0; i < halfedges.length; i++) {
     let e0 = i;
     let t0 = edge2tri(i)
-    let t0_ = goodTris.indexOf(t0)
-    if (t0_ < 0) {
+
+    let t0_ = invTriIds.get(t0)
+    if (t0_ === undefined) {
       continue
     }
 
@@ -56,8 +68,8 @@ function makeMesh(vor, ctx) {
     if (e1 === -1) continue
     let t1 = edge2tri(e1)
 
-    let t1_ = goodTris.indexOf(t1)
-    if (t1_ < 0) {
+    let t1_ = invTriIds.get(t1)
+    if (t1_ === undefined) {
       continue
     }
 
@@ -70,14 +82,14 @@ function makeMesh(vor, ctx) {
       adj_[t1_].push(t0_);
     }
 
-    adj[t0] = adj[t0] || [];
-    if (!adj[t0].includes(t1)) {
-      adj[t0].push(t1);
-    }
-    adj[t1] = adj[t1] || [];
-    if (!adj[t1].includes(t0)) {
-      adj[t1].push(t0);
-    }
+    // adj[t0] = adj[t0] || [];
+    // if (!adj[t0].includes(t1)) {
+    //   adj[t0].push(t1);
+    // }
+    // adj[t1] = adj[t1] || [];
+    // if (!adj[t1].includes(t0)) {
+    //   adj[t1].push(t0);
+    // }
     // let left = edge2tri(e0)
     // let right = edge2tri(e1)
     // edges.push([p0, p1, left, right]);
@@ -95,9 +107,11 @@ function makeMesh(vor, ctx) {
   // mesh.adj = adj = Array.from(mesh.triIDs).map((v,i) =>  adj[v].map(v => mesh.triIDs[v]) )
   mesh.adj = adj = adj_
 
+  console.timeEnd("adj")
   mesh.ctx = ctx
 
 
+  console.time("everything else in makeMesh")
   mesh.zero = () => {
     let arr = new Array(mesh.triIDs.length)
     arr.fill(0.0)
@@ -247,6 +261,8 @@ function makeMesh(vor, ctx) {
   }
 
 
+  console.timeEnd("everything else in makeMesh")
+  console.timeEnd("makeMesh")
   console.log(mesh)
   return mesh;
 
