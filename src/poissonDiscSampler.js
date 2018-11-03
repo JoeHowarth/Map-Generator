@@ -6,9 +6,8 @@ export default function poissonDiscSampler(width, height, radius) {
   let cellSize = radius * Math.SQRT1_2;
   let gridWidth = Math.ceil(width / cellSize);
   let gridHeight = Math.ceil(height / cellSize);
-  console.log(gridWidth, gridHeight)
   let arrSize = Math.ceil(gridWidth * gridHeight)
-  console.log(arrSize)
+  console.log('grid dim', gridWidth, gridHeight, arrSize)
   let grid = new Array(arrSize);
   let queue = [];
   let queueSize = 0;

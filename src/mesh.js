@@ -9,15 +9,16 @@ const angCutoff = 3.14 * 0.7
 
 function makeMesh(vor, ctx) {
 
-  console.log("in make mesh")
-  console.time("makeMesh")
-  console.time("goodTris")
+  console.log('in make mesh')
+  console.time('makeMesh')
+  console.time('goodTris')
 
   let mesh = Object.create(vor.__proto__);
   Object.assign(mesh, vor);
   Object.assign(mesh, vor.delaunay)
   const { halfedges, points, triangles } = mesh
 
+  /// re-index based off triIDs instead of original
   let goodTris = []
   Array.from(vor.delaunay.trianglePolygons())
     .forEach((pts, i) => {
@@ -46,72 +47,41 @@ function makeMesh(vor, ctx) {
   for (let i = 0; i < mesh.triIDs.length; i++) {
     invTriIds.set(mesh.triIDs[i], i)
   }
+  mesh.invTriIds = invTriIds
 
-  console.timeEnd("goodTris")
+  console.timeEnd('goodTris')
 
-  console.time("adj")
+  console.time('adj')
   // adjacent tris to each tri
   let adj = []
-  let adj_ = []
   for (let i = 0; i < halfedges.length; i++) {
     let e0 = i;
-    let t0 = edge2tri(i)
+    let t0_ = invTriIds.get(edge2tri(i))
+    if (t0_ === undefined) continue
 
-    let t0_ = invTriIds.get(t0)
-    if (t0_ === undefined) {
-      continue
-    }
-
-    const p0 = triangles[e0]
     let e1 = halfedges[e0]
-    // if (e1 === -1) e1 = mesh.inedges[p0]
     if (e1 === -1) continue
-    let t1 = edge2tri(e1)
 
-    let t1_ = invTriIds.get(t1)
-    if (t1_ === undefined) {
-      continue
+    let t1_ = invTriIds.get(edge2tri(e1))
+    if (t1_ === undefined) continue
+
+    adj[t0_] = adj[t0_] || [];
+    if (!adj[t0_].includes(t1_)) {
+      adj[t0_].push(t1_);
     }
-
-    adj_[t0_] = adj_[t0_] || [];
-    if (!adj_[t0_].includes(t1_)) {
-      adj_[t0_].push(t1_);
+    adj[t1_] = adj[t1_] || [];
+    if (!adj[t1_].includes(t0_)) {
+      adj[t1_].push(t0_);
     }
-    adj_[t1_] = adj_[t1_] || [];
-    if (!adj_[t1_].includes(t0_)) {
-      adj_[t1_].push(t0_);
-    }
-
-    // adj[t0] = adj[t0] || [];
-    // if (!adj[t0].includes(t1)) {
-    //   adj[t0].push(t1);
-    // }
-    // adj[t1] = adj[t1] || [];
-    // if (!adj[t1].includes(t0)) {
-    //   adj[t1].push(t0);
-    // }
-    // let left = edge2tri(e0)
-    // let right = edge2tri(e1)
-    // edges.push([p0, p1, left, right]);
-
-    // tris[p0] = tris[p0] || [];
-    // if (!tris[p0].includes(left)) tris[p0].push(left);
-    // if (right && !tris[p0].includes(right)) tris[p0].push(right);
-    // tris[p1] = tris[p1] || [];
-    // if (!tris[p1].includes(left)) tris[p1].push(left);
-    // if (right && !tris[p1].includes(right)) tris[p1].push(right);
   }
 
-  /// re-index based off triIDs instead of original
 
-  // mesh.adj = adj = Array.from(mesh.triIDs).map((v,i) =>  adj[v].map(v => mesh.triIDs[v]) )
-  mesh.adj = adj = adj_
-
-  console.timeEnd("adj")
+  console.timeEnd('adj')
+  mesh.adj = adj
   mesh.ctx = ctx
 
 
-  console.time("everything else in makeMesh")
+  console.time('everything else in makeMesh')
   mesh.zero = () => {
     let arr = new Array(mesh.triIDs.length)
     arr.fill(0.0)
@@ -122,7 +92,8 @@ function makeMesh(vor, ctx) {
     i = mesh.triIDs[i]
     return [points[i * 2], points[i * 2 + 1]]
   }
-  mesh.triPaths = Array.from(mesh.triIDs).map(v => mesh.delaunay.trianglePolygon(v))
+  mesh.triPaths = Array.from(mesh.triIDs)
+    .map(v => mesh.delaunay.trianglePolygon(v))
   mesh.hullPoly = mesh.delaunay.hullPolygon()
 
   let centroids = mesh.triPaths.map(centroid)
@@ -154,8 +125,6 @@ function makeMesh(vor, ctx) {
   mesh.map = (f) => {
     let mapped = new Array(mesh.adj.length)
     for (let i = 0; i < mapped.length; i++) {
-      // let pt = [mesh.centroids[i * 2], mesh.centroids[i * 2 + 1]]
-
       mapped[i] = f(centroids[i], i, mesh)
     }
     mapped.mesh = mesh;
@@ -190,45 +159,38 @@ function makeMesh(vor, ctx) {
   }
 
   mesh.distance = (i, j) => {
-    // i *= 2
-    // j *= 2
-    const [ix,iy] = mesh.normPts[i]
-      // iy = mesh.normPts[i + 1]
-    const [jx,jy] = mesh.normPts[j]
-      // jy = mesh.normPts[j + 1]
+    const [ix, iy] = mesh.normPts[i]
+    const [jx, jy] = mesh.normPts[j]
     return Math.sqrt((ix - jx) * (ix - jx) + (iy - jy) * (iy - jy))
   }
 
   mesh.trislope = (h, i) => {
-    var nbs = mesh.adj[i]
-    // console.log(i, nbs.length)
+    let nbs = mesh.adj[i]
     if (nbs.length !== 3) return [0, 0];
-    var p0 = mesh.normPts[nbs[0]];
-    var p1 = mesh.normPts[nbs[1]];
-    var p2 = mesh.normPts[nbs[2]];
+    let p0 = mesh.normPts[nbs[0]];
+    let p1 = mesh.normPts[nbs[1]];
+    let p2 = mesh.normPts[nbs[2]];
 
-    var x1 = p1[0] - p0[0];
-    var x2 = p2[0] - p0[0];
-    var y1 = p1[1] - p0[1];
-    var y2 = p2[1] - p0[1];
+    let x1 = p1[0] - p0[0];
+    let x2 = p2[0] - p0[0];
+    let y1 = p1[1] - p0[1];
+    let y2 = p2[1] - p0[1];
 
-    var det = x1 * y2 - x2 * y1;
-    var h1 = h[nbs[1]] - h[nbs[0]];
-    var h2 = h[nbs[2]] - h[nbs[0]];
-    // console.log("slopes", [(y2 * h1 - y1 * h2) / det,
-    //   (-x2 * h1 + x1 * h2) / det])
+    let det = x1 * y2 - x2 * y1;
+    let h1 = h[nbs[1]] - h[nbs[0]];
+    let h2 = h[nbs[2]] - h[nbs[0]];
 
     return [(y2 * h1 - y1 * h2) / det,
       (-x2 * h1 + x1 * h2) / det];
   }
 
   mesh.renderMesh = (arr, { a, cfn } = { cfn: heightToColor }) => {
-    mesh.ctx.beginPath()
-    cfn = cfn || heightToColor
-    // mesh.render(ctx)
-    mesh.ctx.stroke()
     if (arr) {
+      mesh.ctx.beginPath()
+      cfn = cfn || heightToColor
+      mesh.ctx.stroke()
       ctx.globalAlpha = a ? a : 1
+
       for (let i = 0; i < arr.length; i++) {
         drawPoly(mesh.ctx, mesh.triPaths[i], cfn(arr[i]))
       }
@@ -251,6 +213,7 @@ function makeMesh(vor, ctx) {
     ctx.stroke()
     ctx.globalAlpha = 1
   }
+
   mesh.renderVor = ({ color, alpha, del } = {}) => {
     ctx.stroke()
     ctx.strokeStyle = color ? color : 'rgb(0,0,0)'
@@ -261,11 +224,40 @@ function makeMesh(vor, ctx) {
   }
 
 
-  console.timeEnd("everything else in makeMesh")
-  console.timeEnd("makeMesh")
+  console.timeEnd('everything else in makeMesh')
+  console.timeEnd('makeMesh')
   console.log(mesh)
   return mesh;
 
+}
+
+function contour(mesh, h, level) {
+  level = level || 0;
+  let edges = [];
+  const {halfedges, invTriIds, triangles, points, triIds} = mesh
+  halfedges.map((e1,i) => {
+    if (invTriIds(e1/3) === undefined){
+      return
+    } else if (invTriIds(halfedges[e1]/3) === undefined) {
+      return
+    }
+
+    let e2 = halfedges[e1]
+    let t1 = triangles[e1/3]
+    let t2 = triangles[e2/3]
+    let p1 = [points[t1 * 2], points[t1 * 2 + 1]]
+    let p2 = [points[t2 * 2], points[t2 * 2 + 1]]
+
+    if (h[invTriIds[t1]])
+
+    if (e[3] === undefined) return;
+    if (mesh.isNearEdge(e[0]) || mesh.isNearEdge(h.mesh, e[1])) return;
+    if ((h[e[0]] > level && h[e[1]] <= level) ||
+      (h[e[1]] > level && h[e[0]] <= level)) {
+      edges.push([e[2], e[3]]);
+    }
+  })
+  return mergeSegments(edges);
 }
 
 function lengthSquared([ax, ay], [bx, by]) {
@@ -305,57 +297,4 @@ function centroid(pts) {
 
 export { nextEdge, prevEdge, tri2edge, edge2tri, makeMesh };
 
-// function makeMesh(pts, extent) {
-//   extent = extent || defaultExtent;
-//   const delaunay = Delaunay.from(pts)
-//
-//   const vor = delaunay.voronoi(extent)
-//   let vxs = []
-//   let vxids = {};
-//   let adj = [];
-//   let edges = [];
-//   let tris = [];
-//   for (let i = 0; i < vor.halfedges.length; i++) {
-//     let e = vor.halfedges[i];
-//     if (e === undefined) continue;
-//     let e0 = vxids[e[0]];
-//     let e1 = vxids[e[1]];
-//     if (e0 === undefined) {
-//       e0 = vxs.length;
-//       vxids[e[0]] = e0;
-//       vxs.push(e[0]);
-//     }
-//     if (e1 === undefined) {
-//       e1 = vxs.length;
-//       vxids[e[1]] = e1;
-//       vxs.push(e[1]);
-//     }
-//     adj[e0] = adj[e0] || [];
-//     adj[e0].push(e1);
-//     adj[e1] = adj[e1] || [];
-//     adj[e1].push(e0);
-//     edges.push([e0, e1, e.left, e.right]);
-//     tris[e0] = tris[e0] || [];
-//     if (!tris[e0].includes(e.left)) tris[e0].push(e.left);
-//     if (e.right && !tris[e0].includes(e.right)) tris[e0].push(e.right);
-//     tris[e1] = tris[e1] || [];
-//     if (!tris[e1].includes(e.left)) tris[e1].push(e.left);
-//     if (e.right && !tris[e1].includes(e.right)) tris[e1].push(e.right);
-//   }
-//
-//   let mesh = {
-//     pts: pts,
-//     vor: vor,
-//     vxs: vxs,
-//     adj: adj,
-//     tris: tris,
-//     edges: edges,
-//     extent: extent
-//   }
-//   mesh.map = function (f) {
-//     let mapped = vxs.map(f);
-//     mapped.mesh = mesh;
-//     return mapped;
-//   }
-//   return mesh;
-// }
+

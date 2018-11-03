@@ -5,7 +5,7 @@ import * as d3 from 'd3'
 function genHM(mesh) {
   // let mesh = generateGoodMesh(params.npts, params.extent);
   let h = add(
-    slope(mesh, [0.5, 0.5], 0.9),
+    slope(mesh, [0.5, 0.5], 0.2),
     // cone(mesh, rand(-1.0, -0.5) * 0.0001),
     mountains(mesh, 50, 50, 0.5),
     mountains(mesh, 20, 40, 0.4),
@@ -20,13 +20,10 @@ function genHM(mesh) {
   // h = peaky(h);
   // h = fillSinks(mesh, h)
   h = normalize(h);
-  h = doErosion(mesh, h, rand(0.02, 0.1), 1);
+  h = doErosion(mesh, h, rand(0.02, 0.1), 2);
   // h = setSeaLevel(mesh, h, rand(0.1, 0.2));
   h = setSeaLevel(mesh, h, 0.35);
-  // console.log("after sea: ", h)
   h = normalize(h, 0.01)
-  // console.log("after norm: ", h)
-  // console.log("min, max", d3.min(h), d3.max(h))
 
   h = fillSinks(mesh, h);
   h = cleanCoast(mesh, h, 3);
@@ -45,43 +42,32 @@ function mountains(mesh, n, r, h) {
     mounts.push([rand(W * 0.1, W * 0.9), rand(H * 0.1, H * 0.9)]);
   }
 
-  // const rsqrt = Math.sqrt(r) /1.5 ;
-  // const rsqrt = (r * h) / 8.5;
-  // mounts.forEach(v => ctx.fillRect(v[0] - 2, v[1] - 2, rsqrt, rsqrt))
-
-  // console.log(mounts)
-  let newvals = mesh.zero().map((_,i) => {
-    let p = centroids[i]
-    let sum = 0
-    for (let j = 0; j < n; j++) {
-      let m = mounts[j];
-      const dist = ((p[0] - m[0]) * (p[0] - m[0]) + (p[1] - m[1]) * (p[1] - m[1]))
-      const exp = Math.exp(-dist / (2 * r * r))
-      sum += Math.pow(exp * h, 2)
-    }
-    return sum
-  })
-  // console.log("newvals in mountains",newvals)
-  return newvals;
+  return mesh.zero()
+    .map((_, i) => {
+      let p = centroids[i]
+      let sum = 0
+      for (let j = 0; j < n; j++) {
+        let m = mounts[j];
+        const dist = ((p[0] - m[0]) * (p[0] - m[0]) + (p[1] - m[1]) * (p[1] - m[1]))
+        const exp = Math.exp(-dist / (2 * r * r))
+        sum += Math.pow(exp * h, 2)
+      }
+      return sum
+    });
 }
 
-function slope(mesh, dir, steepness) {
+function slope(mesh, dir, steepness = 1.0) {
   // unit vector
   let len = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1])
   dir = [dir[0] / len, dir[1] / len]
   let h = mesh.map((pt, i) => {
     // dir is unit vec now
-    // console.log("in slope (not getslope)", pt, dir)
     return pt[0] * dir[0] + pt[1] * dir[1]
   })
-  return normalize(h)
+  return scale(normalize(h), steepness)
+
 }
 
-function quantile(h, q) {
-  let sortedh = h.slice()
-  sortedh.sort(d3.ascending);
-  return d3.quantile(sortedh, q);
-}
 
 function cone(mesh, slope) {
   let [Cx, Cy] = mesh.extent.slice()
@@ -96,9 +82,16 @@ function cone(mesh, slope) {
 }
 
 function normalize(h, lo, hi) {
-  lo = lo || d3.min(h);
+  if (!lo && lo !== 0) {
+    lo = d3.min(h)
+  }
+  console.log(lo)
   hi = hi || d3.max(h);
   return h.map(x => (x - lo) / (hi - lo))
+}
+
+function scale(h, v) {
+  return h.map(x => x * v)
 }
 
 function peaky(h) {
@@ -314,6 +307,12 @@ function cleanCoast(mesh, h, iters) {
     h = newh;
   }
   return h;
+}
+
+function quantile(h, q) {
+  let sortedh = h.slice()
+  sortedh.sort(d3.ascending);
+  return d3.quantile(sortedh, q);
 }
 
 export {
