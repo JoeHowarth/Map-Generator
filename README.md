@@ -1,5 +1,5 @@
 # Goals 
-
+![map1](map1.png)
 ### Short term (in js)
  - Create small continent size maps 
  - Semi-realistic heightmap 
@@ -31,5 +31,6 @@
  1. get a workable heightmap by end of week
  2. decide on unity vs rust/browser
   
+ 
  
     
