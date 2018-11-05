@@ -7,7 +7,7 @@ import * as m from './mesh'
 import poissonDiscSampler from './poissonDiscSampler'
 import * as HM from './heightmap'
 import { genHM } from './heightmap'
-import { heightToColor } from './render-map'
+import { heightToColor, renderCoastLine } from './render-map'
 import { normalize } from './heightmap'
 import { getSlope } from './heightmap'
 import { erosionRate } from './heightmap'
@@ -28,66 +28,78 @@ var canvas,
   ctx,
   vor,
   mesh,
-  W,
-  H;
+  Wpx,
+  Hpx,
+  Wkm,
+  Hkm;
 
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = setup(10)
+  mesh = await setup(60, 60, 4.6)
   const { points, triangles, halfedges } = mesh
 
   console.log(mesh)
-  let m = genHM(mesh)
+  let m = await genHM(mesh)
 
-  let m1 = m.slice()
+  let slope = HM.getSlope(mesh, m)
+  let slope_vis = normalize(slope)
 
-  mesh.renderDel()
-  mesh.renderMesh(m)
+  console.log("slope info", d3.min(slope), d3.max(slope), d3.median(slope))
 
-  window.Vor = vor;
+  let er = HM.erosionRate(mesh, m)
+  console.log("height info", d3.min(m), d3.max(m), d3.median(m))
+
+  if (true) {
+    mesh.renderMesh(m)
+    renderCoastLine(mesh, m, 0.1)
+  } else {
+    alternate([
+        () => mesh.renderMesh(m),
+        // () => mesh.renderMesh(slope_vis),
+        // () => mesh.renderMesh(normalize(er)),
+      ],
+      2000)
+  }
 });
 
-function showNeighbors(mesh, i) {
-  const nbs = mesh.adj[i]
-  const [x, y] = mesh.centroids[i]
-  nbs.forEach(j => {
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    const [x1, y1] = mesh.centroids[j]
-    ctx.lineTo(x1, y1)
-    ctx.stroke()
-  })
-}
 
-function renderCentroid(mesh) {
-  ctx.fillStyle = '#880000'
-  mesh.triIDs.forEach((_, v) => {
-    const [x, y] = mesh.centroids[v]
-    ctx.beginPath()
+/* gets canvas ctx, generates points, sets scale transforms
+ * width & height: 100 km
+ *
+ */
+async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
+  Wkm = Wkm_
+  Hkm = Hkm_
+  const ratio = Wkm / Hkm;
+  Hpx = window.outerHeight * 0.9;
+  Wpx = Hpx * ratio
+  if (Wpx > window.outerWidth) {
+    Wpx = window.outerWidth * 0.9
+    Hpx = Wpx / ratio
+  }
 
-    ctx.fillRect(x - 7, y - 7, 14, 14)
-    ctx.fill()
+  const km2px = Wpx / Wkm
+  const px2km = Wkm / Wpx
 
-  })
-  ctx.fillStyle = '#000000'
-}
-
-function setup(density = 20) {
   canvas = document.getElementById('canvasID');
-  [W, H] = [window.outerWidth * 0.8, window.outerHeight * 0.9];
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = Wpx;
+  canvas.height = Hpx;
   canvas.margin = '5px'
   ctx = canvas.getContext('2d');
   ctx.font = '18px serif';
 
-  console.log('W, H', W, H)
+  console.log('Wpx, Hpx', Wpx, Hpx)
+  console.log('Wkm, Hkm', Wkm, Hkm)
 
-  sampler = poissonDiscSampler(W * 0.95, H * 0.95, density);
+  ctx.fillRect(Wpx/2, Hpx/2, 30, 30)
+  ctx.strokeRect(0,0, Wpx, Hpx)
+
+
+  sampler = poissonDiscSampler(Wkm * 0.98, Hkm * 0.98, density);
 
   let points = [];
-  let max_points = 1000000;
+  const max_points = 1000000;
   // let pts = await getPoisson(num_per_gen, sampler);
   let i = 0
   for (let s; i < max_points && (s = sampler()); i++) {
@@ -95,11 +107,17 @@ function setup(density = 20) {
   }
   console.log('num points: ', i)
 
-  let delaunay = Delaunay.from(points);
-  vor = delaunay.voronoi([2, 2, W, H]);
+  points = points.map(([x,y]) => [x+Wkm * 0.010, y+Hkm * 0.010])
+
+  const delaunay = Delaunay.from(points);
+  vor = delaunay.voronoi([0, 0, Wkm, Hkm]);
+
+  ctx.beginPath()
+  delaunay.render(ctx)
+  ctx.stroke()
 
 
-  mesh = makeMesh(vor, ctx)
+  mesh = await makeMesh(vor, ctx, [Wkm, Hkm], [Wpx, Hpx])
 
   return mesh
 

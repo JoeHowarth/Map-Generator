@@ -1,26 +1,48 @@
-import { add, rand } from './map-utils'
+import { add, rand, randDir, rnorm } from './map-utils'
 import * as d3 from 'd3'
 
 
-function genHM(mesh) {
+async function genHM(mesh) {
   // let mesh = generateGoodMesh(params.npts, params.extent);
+  const [W,H] = mesh.Dkm
+
+  const area = W * H
+  const sharpHillDensity = 0.004
+  const roundHillDensity = 0.0015
+  const mountainDensity =  0.001
+
+  const shNum = Math.ceil(sharpHillDensity * area)
+  const rhNum = Math.ceil(roundHillDensity * area)
+  const mtNum = Math.ceil(mountainDensity * area)
+
+  console.log("hill nums ",shNum, rhNum, mtNum)
+  console.log("area", mesh.Dkm, area)
+
+
   let h = add(
-    slope(mesh, [0.5, 0.5], 0.2),
-    // cone(mesh, rand(-1.0, -0.5) * 0.0001),
-    mountains(mesh, 50, 50, 0.5),
-    mountains(mesh, 20, 40, 0.4),
-    mountains(mesh, 5, 150, 0.4),
-    mountains(mesh, 5, 150, 0.8),
-    mountains(mesh, 2, 350, 0.1),
+    // slope(mesh, randDir(), 1.5),
+    // cone(mesh, rand(-1.0, -0.5) * 0.0005, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
+    // cone(mesh, 0.01, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
+    // cone(mesh, 0.010, [rnorm(W/2, W/8), rnorm(H/2, H/8) ]),
+    // cone(mesh, 0.005, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
+    cone(mesh, 0.002, [rnorm(W/2, W/3), rnorm(H/2, H/3) ]),
+    mountains(mesh, shNum, 5, 0.7),
+    mountains(mesh, shNum, 5, 0.7),
+    mountains(mesh, rhNum, 8, 0.4),
+    mountains(mesh, mtNum * 0.5, 30, 0.4),
+    mountains(mesh, mtNum * 0.5, 15, 0.8),
+    mountains(mesh, mtNum * 0.2, 35, 0.1),
+    // hills(mesh, 50, 5, 0.8)
   );
-  console.log("h after mountains", h)
+  // console.log("h after mountains", h)
   for (let i = 0; i < 0; i++) {
-    h = mesh.relax(h);
+    h = relax(mesh, h);
   }
-  // h = peaky(h);
+  h = peaky(h);
   // h = fillSinks(mesh, h)
-  h = normalize(h);
-  h = doErosion(mesh, h, rand(0.02, 0.1), 2);
+  // h = normalize(h);
+  // h = doErosion(mesh, h, rand(0.02, 0.1), 2);
+  h = doErosion(mesh, h, 0.08, 2);
   // h = setSeaLevel(mesh, h, rand(0.1, 0.2));
   h = setSeaLevel(mesh, h, 0.35);
   h = normalize(h, 0.01)
@@ -31,16 +53,35 @@ function genHM(mesh) {
 
 }
 
+
+function relax(mesh, h) {
+  let newh = mesh.zero()
+  for (let i = 0; i < newh.length; i++) {
+    const nbs = mesh.adj[i];
+    if (nbs.length < 3 && nbs.length > 0) {
+      let di = nbs.slice()
+      di.push(i)
+      newh[i] = d3.mean(di.map(v => h[v] * 0.99));
+      continue;
+    } else if (nbs.length < 3) {
+      newh[i] = 0;
+      continue;
+    }
+    newh[i] = d3.mean(nbs.map(j => h[j]))
+  }
+  return newh;
+}
+
 function mountains(mesh, n, r, h) {
   r = r || 100;
   h = h || 1;
   let mounts = [];
   const { centroids } = mesh
-  const W = mesh.xmax - mesh.xmin,
-    H = mesh.ymax - mesh.ymin
+  const [Wkm, Hkm] = mesh.Dkm
   for (let i = 0; i < n; i++) {
-    mounts.push([rand(W * 0.1, W * 0.9), rand(H * 0.1, H * 0.9)]);
+    mounts.push([rand(Wkm * 0.05, Wkm * 0.95), rand(Hkm * 0.05, Hkm * 0.95)]);
   }
+
 
   return mesh.zero()
     .map((_, i) => {
@@ -69,10 +110,11 @@ function slope(mesh, dir, steepness = 1.0) {
 }
 
 
-function cone(mesh, slope) {
-  let [Cx, Cy] = mesh.extent.slice()
+function cone(mesh,  slope, loc) {
+  let [Cx, Cy] = mesh.Dkm.slice()
   Cx /= 2;
   Cy /= 2;
+  [Cx, Cy] = loc? loc : [Cx, Cy]
   return mesh.map(v => {
     const x = (v[0] - Cx)
     const y = (v[1] - Cy)
@@ -85,7 +127,6 @@ function normalize(h, lo, hi) {
   if (!lo && lo !== 0) {
     lo = d3.min(h)
   }
-  console.log(lo)
   hi = hi || d3.max(h);
   return h.map(x => (x - lo) / (hi - lo))
 }
@@ -102,7 +143,7 @@ function peaky(h) {
 
 function downhill(mesh, h) {
   // if (h.downhill) return h.downhill;
-  console.log("h in downHill", h)
+  // console.log("h in downHill", h)
 
   function downFrom(i) {
     if (mesh.isEdge(i)) return -2
@@ -126,7 +167,7 @@ function downhill(mesh, h) {
 }
 
 function getFlux(mesh, h) {
-  console.log("h in getflux", h)
+  // console.log("h in getflux", h)
   const dh = downhill(mesh, h);
   let idxs = mesh.triIDs.map((v, i) => i)
   let flux = h.map((_, i) => 1 / h.length)
@@ -227,10 +268,10 @@ function fillSinks(mesh, h, epsilon) {
       return infinity;
     }
   })
-  console.log("fillSinks, init newh", newh)
-  let c = 0
-  while (c < 200) {
-    c +=1
+  // console.log("fillSinks, init newh", newh)
+  // fixed point alg
+  const MAX_ITERS = 2000
+  for (let iter = 0; iter < MAX_ITERS; iter++) {
     let changed = false;
     for (let i = 0; i < newh.length; i++) {
       if (newh[i] === h[i]) continue;

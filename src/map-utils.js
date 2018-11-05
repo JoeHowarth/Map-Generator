@@ -28,9 +28,18 @@ function add() {
   return newvals;
 }
 
+function randDir() {
+  const theta = rand(0,2*3.141592)
+  const x = Math.cos(theta);
+  const y = Math.sin(theta)
+  console.assert(Math.sqrt(x*x + y*y) + 0.001 > 1.0, "not unit vec", [x,y])
+  return [x,y]
+
+}
+
 var rnorm = (function () {
   var z2 = null;
-  function rnorm() {
+  function rnorm(mean = 0, sigma =1) {
     if (z2 != null) {
       var tmp = z2;
       z2 = null;
@@ -45,15 +54,13 @@ var rnorm = (function () {
       w = x1 * x1 + x2 * x2;
     }
     w = Math.sqrt(-2 * Math.log(w) / w);
-    z2 = x2 * w;
-    return x1 * w;
+    z2 = x2 * w * sigma + mean;
+    let res = x1 * w;
+    return (res * sigma + mean)
   }
   return rnorm;
 })();
 
-function randomVector(scale) {
-  return [scale * rnorm(), scale * rnorm()];
-}
 
 function alternate(fs, t) {
   let i = 0;
@@ -71,4 +78,4 @@ function randi(min, max) {
   return Math.floor(Math.random() * (max - min) + min);
 };
 
-export { drawPoly, rand, randi, add, alternate, rnorm, randomVector};
+export { drawPoly, rand, randi, add, alternate, rnorm, randDir};
