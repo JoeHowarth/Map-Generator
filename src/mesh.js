@@ -32,11 +32,14 @@ async function makeMesh(vor, ctx, [Wkm, Hkm], [Wpx, Hpx]) {
 
   mesh.pt_km2px = ([x, y]) => [x * mesh.km2px, y * mesh.km2px]
 
+
+  // calculate valid triangle ids (ie not slivers)
   let [triIDs, invTriIDs] = calcTriIDs(mesh)
   mesh.triIDs = triIDs
   mesh.invTriIDs = invTriIDs
   console.log(invTriIDs)
   console.table(mesh.invTriIDs)
+
 
   // adjacent tris to each tri
   let adj = calcAdj(mesh)
@@ -50,14 +53,14 @@ async function makeMesh(vor, ctx, [Wkm, Hkm], [Wpx, Hpx]) {
     return arr;
   }
 
+  // get i-th triangle vertex
+  // associated with mesh.triangles[] NOT new triIDs
   mesh.point_km = i => {
-    i = mesh.triIDs[i]
     return [points[i * 2], points[i * 2 + 1]]
   }
 
   mesh.points_px = mesh.points.map(x => x * mesh.km2px)
   mesh.point_px = i => {
-    i = mesh.triIDs[i]
     return [mesh.points_px[i * 2], mesh.points_px[i * 2 + 1]]
   }
 

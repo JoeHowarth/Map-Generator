@@ -36,7 +36,7 @@ var canvas,
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = await setup(60, 60, 4.6)
+  mesh = await setup(100, 100, 0.9)
   const { points, triangles, halfedges } = mesh
 
   console.log(mesh)
@@ -52,7 +52,9 @@ document.addEventListener('DOMContentLoaded', async function (event) {
 
   if (true) {
     mesh.renderMesh(m)
-    renderCoastLine(mesh, m, 0.1)
+    renderCoastLine(mesh, m)
+    renderCoastLine(mesh, m, 0.3)
+    renderCoastLine(mesh, m, 0.6)
   } else {
     alternate([
         () => mesh.renderMesh(m),
@@ -98,6 +100,8 @@ async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
 
   sampler = poissonDiscSampler(Wkm * 0.98, Hkm * 0.98, density);
 
+  console.time("sample points")
+
   let points = [];
   const max_points = 1000000;
   // let pts = await getPoisson(num_per_gen, sampler);
@@ -105,6 +109,7 @@ async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
   for (let s; i < max_points && (s = sampler()); i++) {
     points.push(s)
   }
+  console.timeEnd("sample points")
   console.log('num points: ', i)
 
   points = points.map(([x,y]) => [x+Wkm * 0.010, y+Hkm * 0.010])

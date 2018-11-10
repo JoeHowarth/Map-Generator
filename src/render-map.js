@@ -48,7 +48,9 @@ function mergeSegments(segs) {
         path = [segs[i][0], segs[i][1]];
         break;
       }
-      if (path === null) break;
+      if (path === null)  {
+        return paths; // all done, so return
+      }
     }
     let changed = false;
     for (let i = 0; i < segs.length; i++) {
@@ -76,47 +78,121 @@ function mergeSegments(segs) {
   return paths;
 }
 
+function mergeSegments2(segs) {
+  // console.log("segs: ",segs)
+  let adj = []
+  for (let i = 0; i < segs.length; i++) {
+    let [id0,id1] = segs[i];
+
+    let a0 = adj[id0] || []
+    a0.push(id1)
+
+    let a1 = adj[id1] || []
+    a1.push(id0)
+
+    adj[id0] = a0;
+    adj[id1] = a1;
+  }
+  // console.log("adj: ", adj)
+
+  let paths = []
+  let done = []
+  let path = null
+  // build paths
+  for (let iter = 0; iter < 2000; iter++) {
+    if (path === null) {
+      // start new path
+      for (let i = 0; i < segs.length; i++) {
+        if (done[i]) continue; // skip until find not added segment
+
+        done[i] = true
+        path = segs[i].slice()
+        // console.log("new path", path)
+        break;
+      }
+      if (path === null)  {
+        // console.log("done",done)
+        return paths; // all done, so return
+      }
+    }
+    // have path, extend it
+    let changed = false;
+    for (let i = 0; i < segs.length; i++) {
+      if (done[i]) continue;
+      // console.log(i, segs[i])
+
+      let len = path.length
+      // if last element in path has 2 adjacent ids
+      if (adj[path[path.length - 1]].length === 2) {
+        // if first id in curr segment equal to last in path
+        if (segs[i][0] === path[path.length - 1]) {
+          // add it
+          path.push(segs[i][1])
+          // console.log("push", segs[i][1], path)
+        } else if (segs[i][1] === path[path.length - 1]) {
+          path.push(segs[i][0])
+          // console.log("push", segs[i][0], path)
+        }
+      } else if (adj[path[0]].length === 2) {
+        // same for front
+        if (segs[i][0] === path[0]) {
+          path.unshift(segs[i][1])
+          // console.log("unshift", segs[i][1], path)
+        } else if (segs[i][1] === path[0]) {
+          path.unshift(segs[i][0])
+          // console.log("unshift", segs[i][0], path)
+        }
+      }
+
+      if (len != path.length) {
+        changed = true;
+        done[i] = true;
+        break;
+      }
+      // none added
+      // console.log("continue")
+
+    }
+    if (!changed) {
+      paths.push(path)
+      path = null
+    }
+
+  }
+
+
+}
+
 function contour(mesh, h, level) {
   level = level || 0;
   let edges = [];
   const { halfedges, invTriIDs, triangles, points, triIDs } = mesh
+  let done = [];
   for (let e1 = 0; e1 < halfedges.length; e1++) {
 
+    let e2 = halfedges[e1]
+    if (done[e1]) continue
     let t1 = triangles[e1]
     let id1 = invTriIDs.get(edge2tri(e1))
 
     if ( id1 === undefined)  continue
 
-    let e2 = halfedges[e1]
     let t2 = triangles[e2]
     let id2 = invTriIDs.get(edge2tri(e2))
 
     if (e2 !== -1 && id2 === undefined)  continue
 
-    let p1 = [points[t1 * 2], points[t1 * 2 + 1]]
-    let p2 = [points[t2 * 2], points[t2 * 2 + 1]]
-
-    let ctx = mesh.ctx
-
-    // if (mesh.isNearEdge(id1) || mesh.isNearEdge(id2)) continue;
-
-    // console.log("elevations: ", h[id1], " ", h[id2])
     if ((h[id1] >= level && h[id2] < level)
       || (h[id2] > level && h[id1] < level)) {
-      let p = [id1, id2]
-      edges.push(p)
-      // console.log("coast edge" )
+      let p = [t1, t2]
+      edges.push(p) // id based, lookup with mesh.point_km
+      done[e2] = true
     }
 
   }
 
   console.time("mergesegments Time")
-  console.log("edges", edges)
-
-  return edges
-
-  let e =  mergeSegments(edges);
-  console.log(e)
+  let e =  mergeSegments2(edges);
   console.timeEnd("mergesegments Time")
   return e
 }
@@ -127,6 +203,9 @@ function renderCoastLine(mesh, h, level = 0) {
 
   ctx.scale(mesh.km2px, mesh.km2px)
   ctx.lineWidth *= mesh.px2km
+  if (level === 0) {
+    ctx.lineWidth *= Math.sqrt(mesh.km2px)
+  }
 
   console.time("contour")
   let paths = contour(mesh, h, level)
@@ -137,13 +216,14 @@ function renderCoastLine(mesh, h, level = 0) {
   paths.forEach(path => {
 
     ctx.beginPath()
-    const [x, y] = mesh.point_km(path.pop())
+
+    const [x, y] = mesh.point_km(path[0])
     ctx.moveTo(x, y)
 
-    path.forEach(i => {
-      let [x,y] = mesh.point_km(i)
+    for (let i = 0; i < path.length; i++) {
+      let [x,y] = mesh.point_km(path[i])
       ctx.lineTo(x, y)
-    });
+    }
 
     ctx.stroke()
 

@@ -32,7 +32,6 @@ async function genHM(mesh) {
     mountains(mesh, mtNum * 0.5, 30, 0.4),
     mountains(mesh, mtNum * 0.5, 15, 0.8),
     mountains(mesh, mtNum * 0.2, 35, 0.1),
-    // hills(mesh, 50, 5, 0.8)
   );
   // console.log("h after mountains", h)
   for (let i = 0; i < 0; i++) {
