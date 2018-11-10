@@ -7,7 +7,7 @@ import * as m from './mesh'
 import poissonDiscSampler from './poissonDiscSampler'
 import * as HM from './heightmap'
 import { genHM } from './heightmap'
-import { heightToColor, renderCoastLine } from './render-map'
+import { heightToColor, renderCoastLine, renderRivers } from './render-map'
 import { normalize } from './heightmap'
 import { getSlope } from './heightmap'
 import { erosionRate } from './heightmap'
@@ -36,7 +36,7 @@ var canvas,
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = await setup(100, 100, 3.9)
+  mesh = await setup(100, 100, 0.9)
   const { points, triangles, halfedges } = mesh
 
   console.log(mesh)
@@ -56,8 +56,9 @@ document.addEventListener('DOMContentLoaded', async function (event) {
   if (true) {
     mesh.renderMesh(m)
     renderCoastLine(mesh, m)
-    renderCoastLine(mesh, m, 0.3)
-    renderCoastLine(mesh, m, 0.6)
+    // renderCoastLine(mesh, m, 0.3)
+    // renderCoastLine(mesh, m, 0.6)
+    renderRivers(mesh, m, 0.01);
   } else {
     alternate([
         () => mesh.renderMesh(m),

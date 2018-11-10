@@ -1,5 +1,6 @@
 import { add, rand, randDir, rnorm } from './map-utils'
 import * as d3 from 'd3'
+import { mergeSegments } from './render-map'
 
 
 async function genHM(mesh) {
@@ -304,6 +305,33 @@ function setSeaLevel(mesh, h, q) {
   return newh;
 }
 
+function getRivers(mesh, h, limit) {
+  let dh = downhill(mesh, h);
+  let flux = getFlux(mesh, h);
+  let links = [];
+  let above = 0;
+  for (let i = 0; i < h.length; i++) {
+    if (h[i] > 0) above++;
+  }
+  limit *= above / h.length;
+  for (let i = 0; i < dh.length; i++) {
+    if (mesh.isNearEdge(i)) continue;
+    if (flux[i] > limit && h[i] > 0 && dh[i] >= 0) {
+      let up = i;
+      let down = dh[i];
+      if (h[dh[i]] > 0) {
+        links.push([up, down]);
+      } else {
+        links.push([up, down]);
+        // links.push([up, [(up[0] + down[0]) / 2, (up[1] + down[1]) / 2]]);
+      }
+    }
+  }
+  return mergeSegments(links)
+  // .map(relaxPath);
+}
+
+
 function cleanCoast(mesh, h, iters) {
   for (let iter = 0; iter < iters; iter++) {
     let changed = 0;
@@ -371,4 +399,5 @@ export {
   quantile,
   setSeaLevel,
   cleanCoast,
+  getRivers,
 }

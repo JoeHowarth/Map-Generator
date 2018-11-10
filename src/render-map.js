@@ -1,6 +1,7 @@
 import * as d3 from 'd3'
 import { drawPoly } from './map-utils'
 import { edge2tri } from './mesh'
+import { downhill, getFlux, getRivers } from './heightmap'
 
 const land = d3.interpolateRgbBasis([
   '#A4D475', //
@@ -26,141 +27,45 @@ function heightToColor(h) {
   return water(-h * 2)
 }
 
-function mergeSegments(segs) {
-  let adj = {};
-  for (let i = 0; i < segs.length; i++) {
-    const seg = segs[i]; // adj tri vertices
-    let a0 = adj[seg[0]] || [];
-    let a1 = adj[seg[1]] || [];
-    a0.push(seg[1]);
-    a1.push(seg[0]);
-    adj[seg[0]] = a0;
-    adj[seg[1]] = a1;
-  }
-  let done = [];
-  let paths = [];
-  let path = null;
-  for (let iter = 0; iter < 200000; iter++) {
-    if (path === null) {
-      for (let i = 0; i < segs.length; i++) {
-        if (done[i]) continue;
-        done[i] = true;
-        path = [segs[i][0], segs[i][1]];
-        break;
-      }
-      if (path === null)  {
-        return paths; // all done, so return
-      }
+
+function renderRivers(mesh, h, limit) {
+  const ctx = mesh.ctx
+  ctx.save();
+
+  ctx.scale(mesh.km2px, mesh.km2px)
+  ctx.lineWidth *= mesh.px2km
+  let paths = getRivers(mesh, h, limit);
+
+  paths = paths.map(p => p.map(i => mesh.centroids[i]))
+  paths = paths.map(relaxPath)
+
+  paths.forEach(path => {
+
+    ctx.beginPath()
+
+    const [x, y] = path[0]
+    ctx.moveTo(x, y)
+
+    for (let i = 0; i < path.length; i++) {
+      let [x, y] = path[i]
+      ctx.lineTo(x, y)
     }
-    let changed = false;
-    for (let i = 0; i < segs.length; i++) {
-      if (done[i]) continue;
-      if (adj[path[0]].length === 2 && segs[i][0] === path[0]) {
-        path.unshift(segs[i][1]);
-      } else if (adj[path[0]].length === 2 && segs[i][1] === path[0]) {
-        path.unshift(segs[i][0]);
-      } else if (adj[path[path.length - 1]].length === 2 && segs[i][0] === path[path.length - 1]) {
-        path.push(segs[i][1]);
-      } else if (adj[path[path.length - 1]].length === 2 && segs[i][1] === path[path.length - 1]) {
-        path.push(segs[i][0]);
-      } else {
-        continue;
-      }
-      done[i] = true;
-      changed = true;
-      break;
-    }
-    if (!changed) {
-      paths.push(path);
-      path = null;
-    }
-  }
-  return paths;
+
+    ctx.stroke()
+
+  })
+
 }
 
-function mergeSegments2(segs) {
-  // console.log("segs: ",segs)
-  let adj = []
-  for (let i = 0; i < segs.length; i++) {
-    let [id0,id1] = segs[i];
-
-    let a0 = adj[id0] || []
-    a0.push(id1)
-
-    let a1 = adj[id1] || []
-    a1.push(id0)
-
-    adj[id0] = a0;
-    adj[id1] = a1;
+function relaxPath(path) {
+  let newpath = [path[0]];
+  for (let i = 1; i < path.length - 1; i++) {
+    let newpt = [0.25 * path[i - 1][0] + 0.5 * path[i][0] + 0.25 * path[i + 1][0],
+      0.25 * path[i - 1][1] + 0.5 * path[i][1] + 0.25 * path[i + 1][1]];
+    newpath.push(newpt);
   }
-  // console.log("adj: ", adj)
-
-  let paths = []
-  let done = []
-  let path = null
-  // build paths
-  for (let iter = 0; iter < 2000; iter++) {
-    if (path === null) {
-      // start new path
-      for (let i = 0; i < segs.length; i++) {
-        if (done[i]) continue; // skip until find not added segment
-
-        done[i] = true
-        path = segs[i].slice()
-        // console.log("new path", path)
-        break;
-      }
-      if (path === null)  {
-        // console.log("done",done)
-        return paths; // all done, so return
-      }
-    }
-    // have path, extend it
-    let changed = false;
-    for (let i = 0; i < segs.length; i++) {
-      if (done[i]) continue;
-      // console.log(i, segs[i])
-
-      let len = path.length
-      // if last element in path has 2 adjacent ids
-      if (adj[path[path.length - 1]].length === 2) {
-        // if first id in curr segment equal to last in path
-        if (segs[i][0] === path[path.length - 1]) {
-          // add it
-          path.push(segs[i][1])
-          // console.log("push", segs[i][1], path)
-        } else if (segs[i][1] === path[path.length - 1]) {
-          path.push(segs[i][0])
-          // console.log("push", segs[i][0], path)
-        }
-      } else if (adj[path[0]].length === 2) {
-        // same for front
-        if (segs[i][0] === path[0]) {
-          path.unshift(segs[i][1])
-          // console.log("unshift", segs[i][1], path)
-        } else if (segs[i][1] === path[0]) {
-          path.unshift(segs[i][0])
-          // console.log("unshift", segs[i][0], path)
-        }
-      }
-
-      if (len != path.length) {
-        changed = true;
-        done[i] = true;
-        break;
-      }
-      // none added
-      // console.log("continue")
-
-    }
-    if (!changed) {
-      paths.push(path)
-      path = null
-    }
-
-  }
-
-
+  newpath.push(path[path.length - 1]);
+  return newpath;
 }
 
 function contour(mesh, h, level) {
@@ -175,12 +80,12 @@ function contour(mesh, h, level) {
     let t1 = triangles[e1]
     let id1 = invTriIDs.get(edge2tri(e1))
 
-    if ( id1 === undefined)  continue
+    if (id1 === undefined) continue
 
     let t2 = triangles[e2]
     let id2 = invTriIDs.get(edge2tri(e2))
 
-    if (e2 !== -1 && id2 === undefined)  continue
+    if (e2 !== -1 && id2 === undefined) continue
 
     if ((h[id1] >= level && h[id2] < level)
       || (h[id2] > level && h[id1] < level)) {
@@ -191,9 +96,9 @@ function contour(mesh, h, level) {
 
   }
 
-  console.time("mergesegments Time")
-  let e =  mergeSegments2(edges);
-  console.timeEnd("mergesegments Time")
+  // console.time('mergesegments Time')
+  let e = mergeSegments(edges);
+  // console.timeEnd('mergesegments Time')
   return e
 }
 
@@ -207,12 +112,12 @@ function renderCoastLine(mesh, h, level = 0) {
     ctx.lineWidth *= Math.sqrt(mesh.km2px)
   }
 
-  console.time("contour")
+  // console.time('contour')
   let paths = contour(mesh, h, level)
-  console.timeEnd("contour")
-  console.log(paths)
+  // console.timeEnd('contour')
+  // console.log(paths)
 
-  console.time("render coastline")
+  // console.time('render coastline')
   paths.forEach(path => {
 
     ctx.beginPath()
@@ -221,14 +126,14 @@ function renderCoastLine(mesh, h, level = 0) {
     ctx.moveTo(x, y)
 
     for (let i = 0; i < path.length; i++) {
-      let [x,y] = mesh.point_km(path[i])
+      let [x, y] = mesh.point_km(path[i])
       ctx.lineTo(x, y)
     }
 
     ctx.stroke()
 
   })
-  console.timeEnd("render coastline")
+  // console.timeEnd('render coastline')
 
   ctx.restore();
 }
@@ -308,6 +213,90 @@ function genRenderFns(mesh) {
   return mesh
 }
 
+function mergeSegments(segs) {
+  // console.log("segs: ",segs)
+  let adj = []
+  for (let i = 0; i < segs.length; i++) {
+    let [id0, id1] = segs[i];
+
+    let a0 = adj[id0] || []
+    a0.push(id1)
+
+    let a1 = adj[id1] || []
+    a1.push(id0)
+
+    adj[id0] = a0;
+    adj[id1] = a1;
+  }
+  // console.log("adj: ", adj)
+
+  let paths = []
+  let done = []
+  let path = null
+  // build paths
+  for (let iter = 0; iter < 2000; iter++) {
+    if (path === null) {
+      // start new path
+      for (let i = 0; i < segs.length; i++) {
+        if (done[i]) continue; // skip until find not added segment
+
+        done[i] = true
+        path = segs[i].slice()
+        // console.log("new path", path)
+        break;
+      }
+      if (path === null) {
+        // console.log("done",done)
+        return paths; // all done, so return
+      }
+    }
+    // have path, extend it
+    let changed = false;
+    for (let i = 0; i < segs.length; i++) {
+      if (done[i]) continue;
+      // console.log(i, segs[i])
+
+      let len = path.length
+      // if last element in path has 2 adjacent ids
+      if (adj[path[path.length - 1]].length === 2) {
+        // if first id in curr segment equal to last in path
+        if (segs[i][0] === path[path.length - 1]) {
+          // add it
+          path.push(segs[i][1])
+          // console.log("push", segs[i][1], path)
+        } else if (segs[i][1] === path[path.length - 1]) {
+          path.push(segs[i][0])
+          // console.log("push", segs[i][0], path)
+        }
+      } else if (adj[path[0]].length === 2) {
+        // same for front
+        if (segs[i][0] === path[0]) {
+          path.unshift(segs[i][1])
+          // console.log("unshift", segs[i][1], path)
+        } else if (segs[i][1] === path[0]) {
+          path.unshift(segs[i][0])
+          // console.log("unshift", segs[i][0], path)
+        }
+      }
+
+      if (len != path.length) {
+        changed = true;
+        done[i] = true;
+        break;
+      }
+      // none added
+      // console.log("continue")
+
+    }
+    if (!changed) {
+      paths.push(path)
+      path = null
+    }
+
+  }
+
+
+}
 
 export {
   showNeighbors,
@@ -316,5 +305,6 @@ export {
   genRenderFns,
   contour,
   mergeSegments,
-  renderCoastLine
+  renderCoastLine,
+  renderRivers,
 }
