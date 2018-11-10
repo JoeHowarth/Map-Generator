@@ -89,12 +89,12 @@ async function makeMesh(vor, ctx, [Wkm, Hkm], [Wpx, Hpx]) {
   }
 
   mesh.isEdge = i => !adj[i] || adj[i].length < 3
-  mesh.isNearEdge = i => {
+  mesh.isNearEdge = (i, thresh = 0.05) => {
     let c = mesh.centroids[i]
     if (!c) return
     let [x,y] = c
     let [w, h] = mesh.Dkm;
-    return mesh.isEdge(i) || x < 0.05 * w || x > 0.95 * w || y < 0.05 * h || y > 0.95 * h;
+    return mesh.isEdge(i) || x < thresh * w || x > (1.0 - thresh) * w || y < thresh * h || y > (1.0 - thresh) * h;
   }
 
 

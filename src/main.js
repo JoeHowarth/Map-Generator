@@ -7,12 +7,14 @@ import * as m from './mesh'
 import poissonDiscSampler from './poissonDiscSampler'
 import * as HM from './heightmap'
 import { genHM } from './heightmap'
-import { heightToColor, renderCoastLine, renderRivers } from './render-map'
+import { heightToColor, renderCities, renderCoastLine, renderRivers } from './render-map'
 import { normalize } from './heightmap'
 import { getSlope } from './heightmap'
 import { erosionRate } from './heightmap'
 import { peaky } from './heightmap'
 import { erode } from './heightmap'
+import { placeCities } from './heightmap'
+import { cityScore } from './heightmap'
 
 const { edge2tri, tri2edge, prevEdge, nextEdge, makeMesh } = m;
 
@@ -36,7 +38,7 @@ var canvas,
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = await setup(100, 100, 0.9)
+  mesh = await setup(100, 100, 0.5)
   const { points, triangles, halfedges } = mesh
 
   console.log(mesh)
@@ -52,13 +54,27 @@ document.addEventListener('DOMContentLoaded', async function (event) {
   */
 
   console.log("height info", d3.min(m), d3.max(m), d3.median(m))
+  let flux = HM.getFlux(mesh, m)
+  console.log("flux info", d3.min(flux), d3.max(flux), d3.median(flux), d3.mean(flux))
+
+  let score = cityScore(mesh, m, []);
+  let norm_score = normalize(score, 0.01).map(v => {
+    if (v < 0.0) return -0.9;
+    if (v < 0.3) return -0.1;
+
+    return Math.sqrt(v);
+  })
 
   if (true) {
     mesh.renderMesh(m)
+    // mesh.renderMesh(peaky(flux).map(v => v * 1))
     renderCoastLine(mesh, m)
     // renderCoastLine(mesh, m, 0.3)
     // renderCoastLine(mesh, m, 0.6)
+    // mesh.renderMesh(norm_score)
     renderRivers(mesh, m, 0.01);
+    let cities = placeCities(mesh, m, 20);
+    renderCities(mesh, cities)
   } else {
     alternate([
         () => mesh.renderMesh(m),

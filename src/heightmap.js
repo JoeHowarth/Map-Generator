@@ -5,19 +5,19 @@ import { mergeSegments } from './render-map'
 
 async function genHM(mesh) {
   // let mesh = generateGoodMesh(params.npts, params.extent);
-  const [W,H] = mesh.Dkm
+  const [W, H] = mesh.Dkm
 
   const area = W * H
   const sharpHillDensity = 0.004
   const roundHillDensity = 0.0015
-  const mountainDensity =  0.001
+  const mountainDensity = 0.001
 
   const shNum = Math.ceil(sharpHillDensity * area)
   const rhNum = Math.ceil(roundHillDensity * area)
   const mtNum = Math.ceil(mountainDensity * area)
 
-  console.log("hill nums ",shNum, rhNum, mtNum)
-  console.log("area", mesh.Dkm, area)
+  console.log('hill nums ', shNum, rhNum, mtNum)
+  console.log('area', mesh.Dkm, area)
 
 
   let h = add(
@@ -26,7 +26,7 @@ async function genHM(mesh) {
     // cone(mesh, 0.01, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
     // cone(mesh, 0.010, [rnorm(W/2, W/8), rnorm(H/2, H/8) ]),
     // cone(mesh, 0.005, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
-    cone(mesh, 0.002, [rnorm(W/2, W/3), rnorm(H/2, H/3) ]),
+    cone(mesh, 0.002, [rnorm(W / 2, W / 3), rnorm(H / 2, H / 3)]),
     mountains(mesh, shNum, 5, 0.7),
     mountains(mesh, shNum, 5, 0.7),
     mountains(mesh, rhNum, 8, 0.4),
@@ -35,7 +35,7 @@ async function genHM(mesh) {
     mountains(mesh, mtNum * 0.2, 35, 0.1),
   );
   // console.log("h after mountains", h)
-  for (let i = 0; i < 0; i++) {
+  for (let i = 0; i < 1; i++) {
     h = relax(mesh, h);
   }
   h = peaky(h);
@@ -110,11 +110,11 @@ function slope(mesh, dir, steepness = 1.0) {
 }
 
 
-function cone(mesh,  slope, loc) {
+function cone(mesh, slope, loc) {
   let [Cx, Cy] = mesh.Dkm.slice()
   Cx /= 2;
   Cy /= 2;
-  [Cx, Cy] = loc? loc : [Cx, Cy]
+  [Cx, Cy] = loc ? loc : [Cx, Cy]
   return mesh.map(v => {
     const x = (v[0] - Cx)
     const y = (v[1] - Cy)
@@ -189,7 +189,7 @@ function getSlope(mesh, h) {
     .map((v, i) => {
       let s = mesh.trislope(h, i);
       // console.log(s)
-      let slope= Math.sqrt(s[0] * s[0] + s[1] * s[1]);
+      let slope = Math.sqrt(s[0] * s[0] + s[1] * s[1]);
 
       if (slope > 3) {
         if (mesh.isNearEdge(i)) {
@@ -241,7 +241,7 @@ function doErosion(mesh, h, amount, n) {
 
 function findSinks(mesh, h) {
   let dh = downhill(h);
-  let sinks = mesh.triIDs.map((v,i) => {
+  let sinks = mesh.triIDs.map((v, i) => {
     let node = i;
     while (true) {
       if (mesh.isEdge(node)) {
@@ -261,13 +261,14 @@ function findSinks(mesh, h) {
 function fillSinks(mesh, h, epsilon) {
   epsilon = epsilon || 1e-5;
   let infinity = 999999;
-  let newh = mesh.zero().map((v,i) => {
-    if (mesh.isNearEdge(i)) {
-      return h[i];
-    } else {
-      return infinity;
-    }
-  })
+  let newh = mesh.zero()
+    .map((v, i) => {
+      if (mesh.isNearEdge(i)) {
+        return h[i];
+      } else {
+        return infinity;
+      }
+    })
   // console.log("fillSinks, init newh", newh)
   // fixed point alg
   const MAX_ITERS = 2000
@@ -331,6 +332,55 @@ function getRivers(mesh, h, limit) {
   // .map(relaxPath);
 }
 
+function cityScore(mesh, h, cities) {
+  let coastal = isCoastal(mesh, h);
+  let score = getFlux(mesh, h).map(Math.sqrt).map((s,i, flux) => {
+    let nbs = mesh.adj[i].map(j => flux[j])
+    if (coastal[i]) {
+      return  0.7 * d3.max(nbs) + 0.3 * s
+    }
+    return  0.6 * d3.mean(nbs) + 0.4 * s
+  });
+
+  for (let i = 0; i < h.length; i++) {
+    if (h[i] <= 0 || mesh.isNearEdge( i, 2.5 / mesh.Dkm[0])) {
+      score[i] = -999999;
+      continue;
+    }
+    // don't prefer edges of map
+    // score[i] += 0.01 / (1e-9 + Math.abs(mesh.normPts[i][0]) - mesh.extent.width / 2)
+    // score[i] += 0.01 / (1e-9 + Math.abs(h.mesh.vxs[i][1]) - h.mesh.extent.height / 2)
+    for (let j = 0; j < cities.length; j++) {
+      score[i] -= (1.82 - Math.sqrt(cities.length) * 0.3) / (mesh.distance(cities[j], i) + 1e-9);
+    }
+  }
+  return score;
+}
+
+function isCoastal(mesh, h) {
+  return h.map((v, i) => {
+    return v > 0
+      && mesh.adj[i].some(i => h[i] < 0);
+  })
+}
+
+function placeCity(mesh, h, cities) {
+  cities = cities || [];
+  let score = cityScore(mesh, h, cities);
+  let newcity = d3.scan(score, d3.descending);
+  console.log("new city: ", newcity, score[newcity])
+  cities.push(newcity);
+  return cities
+}
+
+function placeCities(mesh, h, numCities) {
+  let n = numCities;
+  let cities = []
+  for (let i = 0; i < n; i++) {
+    placeCity(mesh, h, cities);
+  }
+  return cities
+}
 
 function cleanCoast(mesh, h, iters) {
   for (let iter = 0; iter < iters; iter++) {
@@ -400,4 +450,6 @@ export {
   setSeaLevel,
   cleanCoast,
   getRivers,
+  placeCities,
+  cityScore,
 }

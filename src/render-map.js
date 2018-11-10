@@ -46,7 +46,7 @@ function renderRivers(mesh, h, limit) {
     const [x, y] = path[0]
     ctx.moveTo(x, y)
 
-    for (let i = 0; i < path.length; i++) {
+    for (let i = 1; i < path.length; i++) {
       let [x, y] = path[i]
       ctx.lineTo(x, y)
     }
@@ -54,7 +54,45 @@ function renderRivers(mesh, h, limit) {
     ctx.stroke()
 
   })
+  ctx.restore()
 
+}
+
+function renderCities(mesh, cities) {
+  const ctx = mesh.ctx
+  ctx.save();
+
+  // ctx.scale(mesh.km2px, mesh.km2px)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // ctx.lineWidth *= mesh.px2km
+  let sites = cities.map(i => mesh.centroids_px[i])
+
+  ctx.beginPath()
+  ctx.fillStyle = 'white'
+
+  ctx.font = ctx.font.replace(/\d+px/, parseInt(30) + "px");
+
+  let num_cities = Math.min(sites.length, 5)
+  console.log("num_cities", num_cities)
+  for (let i = 0; i < num_cities; i++) {
+    let [x, y] = sites[i]
+
+    // ctx.font = ctx.font.replace(/\d+px/, (parseInt(ctx.font.match(/\d+px/)) - 1) + "px");
+    ctx.fillText(i + 1, x - 8, y - 15)
+    ctx.fillRect(x - 5, y - 5, 10, 10)
+  }
+
+  ctx.font = ctx.font.replace(/\d+px/, parseInt(18) + "px");
+  for (let i = num_cities; i < cities.length - num_cities; i++ ) {
+    let [x, y] = sites[i]
+    // ctx.font = ctx.font.replace(/\d+px/, (parseInt(ctx.font.match(/\d+px/)) - 1) + "px");
+    ctx.fillText(i + 1, x - 10, y - 10)
+    ctx.fillRect(x - 3, y - 3, 6, 6)
+
+  }
+
+  ctx.stroke()
+  ctx.restore()
 }
 
 function relaxPath(path) {
@@ -96,9 +134,11 @@ function contour(mesh, h, level) {
 
   }
 
-  // console.time('mergesegments Time')
+  console.log("edges",edges)
+  console.time('mergesegments Time')
   let e = mergeSegments(edges);
-  // console.timeEnd('mergesegments Time')
+  console.timeEnd('mergesegments Time')
+  console.log("after merge", e)
   return e
 }
 
@@ -234,7 +274,7 @@ function mergeSegments(segs) {
   let done = []
   let path = null
   // build paths
-  for (let iter = 0; iter < 2000; iter++) {
+  for (let iter = 0; iter < 20000; iter++) {
     if (path === null) {
       // start new path
       for (let i = 0; i < segs.length; i++) {
@@ -307,4 +347,5 @@ export {
   mergeSegments,
   renderCoastLine,
   renderRivers,
+  renderCities,
 }
