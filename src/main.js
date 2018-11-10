@@ -36,18 +36,21 @@ var canvas,
 
 document.addEventListener('DOMContentLoaded', async function (event) {
 
-  mesh = await setup(100, 100, 0.9)
+  mesh = await setup(100, 100, 3.9)
   const { points, triangles, halfedges } = mesh
 
   console.log(mesh)
   let m = await genHM(mesh)
+  exportMesh(mesh)
 
+  console.log(mesh)
+
+  /*
   let slope = HM.getSlope(mesh, m)
   let slope_vis = normalize(slope)
-
   console.log("slope info", d3.min(slope), d3.max(slope), d3.median(slope))
+  */
 
-  let er = HM.erosionRate(mesh, m)
   console.log("height info", d3.min(m), d3.max(m), d3.median(m))
 
   if (true) {
@@ -128,3 +131,28 @@ async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
 
 }
 
+
+function exportMesh(mesh) {
+  let ret = {}
+  ret.adj = mesh.adj
+  ret.points = mesh.points
+  ret.invTriIDs = mesh.invTriIDs
+  ret.triIDs = mesh.triIDs
+  ret.Dkm = mesh.Dkm
+  ret.centroids = mesh.centroids
+  ret.VorCentroids = mesh.VorCentroids
+
+  // exportToJsonFile(ret)
+}
+
+function exportToJsonFile(jsonData) {
+  let dataStr = JSON.stringify(jsonData);
+  let dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+  let exportFileDefaultName = 'data.json';
+
+  let linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+}
