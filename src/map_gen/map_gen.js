@@ -41,12 +41,13 @@ export function getER() {
   const ER = erosionRate(mesh, h)
   return peaky(ER)
 }
+export var showCities
 
 
 
 export default async function (event) {
 
-  mesh = await setup(50, 50, 1.7)
+  mesh = await setup(100, 100, 0.7)
   // const {points, triangles, halfedges} = mesh
 
   console.log(mesh)
@@ -73,11 +74,10 @@ export default async function (event) {
 
     canvas.addEventListener("click", (e) => {
       const scene = window.scene
-      let X,Y
       const {hit, pickedPoint, pickedMesh} = scene.pick(scene.pointerX, scene.pointerY);
       if (hit) {
-        X = pickedPoint.x
-        Y = pickedPoint.y
+        var X = pickedPoint.x
+        var Y = pickedPoint.y
       }
 
       console.log('dist from last Q', dist_from_last_query([X,Y]))
@@ -117,15 +117,19 @@ export async function renderMapGL(mesh, h) {
 
   await renderRiversGL(mesh, h, 0.01, scene)
   renderCoastLine(mesh, h, 0, true, BABYLON.Color3.Black())
-  setTimeout(async () => {
-    // const cities = placeCities(mesh, h, 20)
-    // renderCitiesGL(mesh, cities, 10)
-  }, 10)
+
+  showCities = () => {
+    const cities = placeCities(mesh, h, 20)
+    renderCitiesGL(mesh, cities, 10)
+  }
+
+  // setTimeout(showCities, 10)
   // setTimeout(() => displayIDs(mesh), 0);
 
 
   renderCoastLine(mesh, h, 0.20, true)
 }
+
 
 /* gets canvas ctx, generates points, sets scale transforms
  * width & height: 100 km
@@ -135,7 +139,7 @@ async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
   Wkm = Wkm_
   Hkm = Hkm_
   const ratio = Wkm / Hkm;
-  Hpx = window.outerHeight * 0.95;
+  Hpx = window.outerHeight * 0.85;
   Wpx = Hpx * ratio
   if (Wpx > window.outerWidth * 0.95) {
     Wpx = window.outerWidth * 0.95

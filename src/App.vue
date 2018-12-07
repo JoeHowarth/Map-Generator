@@ -9,7 +9,8 @@
       <v-btn color="info" @click="setER">Erosion Rate</v-btn>
       <v-btn color="info" @click="setFlux">Water Flux</v-btn>
       <v-btn color="info" @click="setSlope">Slope</v-btn>
-      <v-btn color="warn" @click="regen">Regen</v-btn>
+      <v-btn color="info" @click="setCities">Cities</v-btn>
+      <v-btn color="error" @click="regen">Regen</v-btn>
       <v-spacer></v-spacer>
     </v-toolbar>
 
@@ -44,7 +45,7 @@
   import Drawer from './components/Drawer'
   import { mapState } from 'vuex'
   import {updateColorsFun} from "./map_gen/render/webgl";
-  import {getER, getHeight, getMesh} from "./map_gen/map_gen";
+  import {getER, getHeight, getMesh, showCities} from "./map_gen/map_gen";
   import mapGen from './map_gen/map_gen'
   import {getFlux, getSlope, normalize, peaky} from "./map_gen/heightmap";
 
@@ -92,6 +93,9 @@
       },
       regen() {
         mapGen()
+      },
+      setCities() {
+        showCities()
       }
     },
     computed: mapState(["positions"]),
