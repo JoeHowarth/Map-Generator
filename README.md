@@ -86,7 +86,7 @@ downhills, erosion, flux, city sites, rivers,
 |  1994   | 93.1 |  0.75 | 0.21  |   0.028| 
 
 
-Scaling 
+Scaling  (relative to 1e3, average ms)
 
 | N | Naive | Vectoring | Vectoring w/ grid |
 | ----- | ---- | ---- | --- |
