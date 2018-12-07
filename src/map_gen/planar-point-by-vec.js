@@ -103,6 +103,8 @@ function pointInTriangle(pt, v1, v2, v3) {
 
 
 let last_tri_no_grid = 0
+let last_tri_no_grid_anim = 0
+let last_tri_anim = 0
 
 export function pt2triangle_no_grid(mesh, pt) {
   if (!last_tri_no_grid) {
@@ -137,14 +139,14 @@ export function pt2triangle_grid_animated(mesh, pt, box, speed = 20) {
   //   last_tri_no_grid = 0
   // }
 
-  if (distanceSquared(mesh, pt, last_tri) > grid_dist) {
+  if (distanceSquared(mesh, pt, last_tri_anim) > grid_dist) {
     const idx = Math.floor(pt[0] / grid_dist)
     const idy = Math.floor(pt[1] / grid_dist)
-    last_tri = grid[idx][idy] === -1 ? last_tri : grid[idx][idy]
+    last_tri_anim = grid[idx][idy] === -1 ? last_tri_anim : grid[idx][idy]
 
   }
 
-  let t = last_tri
+  let t = last_tri_anim
   let count = 0
   let {pointInTriangleW, memoVisited} = pointInTriangleMemo(mesh, pt)
   // while (!pointInTriangleW(t) && count < 20000) {
@@ -169,7 +171,7 @@ export function pt2triangle_grid_animated(mesh, pt, box, speed = 20) {
       setTimeout(() => loop(t),100)
 
     } else{
-      last_tri = t
+      last_tri_anim = t
       return t
     }
   }
@@ -186,7 +188,7 @@ export function pt2triangle_animated(mesh, pt, box, speed = 20) {
   //   last_tri_no_grid = 0
   // }
 
-  let t = last_tri_no_grid
+  let t = last_tri_no_grid_anim
   let count = 0
   let {pointInTriangleW, memoVisited} = pointInTriangleMemo(mesh, pt)
   // while (!pointInTriangleW(t) && count < 20000) {
@@ -211,7 +213,7 @@ export function pt2triangle_animated(mesh, pt, box, speed = 20) {
       setTimeout(() => loop(t),100)
 
     } else{
-      last_tri_no_grid = t
+      last_tri_no_grid_anim = t
       return t
     }
   }

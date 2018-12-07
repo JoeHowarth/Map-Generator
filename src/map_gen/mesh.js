@@ -15,6 +15,7 @@ const angCutoff = 3.14 * 0.7
  * edge -> other edge: halfedge[e]
  */
 
+
 async function makeMesh(vor, ctx, [Wkm, Hkm], [Wpx, Hpx]) {
 
   console.time('makeMesh')

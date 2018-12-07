@@ -7,7 +7,7 @@ import {
 } from './render/render-map'
 import {} from './heightmap'
 import {
-  genHM,
+  genHM, peaky, erosionRate,
   placeCities,
   downhill, getFlux, getSlope, getRivers,
 } from './heightmap'
@@ -23,27 +23,34 @@ import {
   pt2triangle_naive,
   pt2triangle_no_grid
 } from "./planar-point-by-vec";
+import {} from "./heightmap";
 
 const WEBGL = true;
 
-var canvas,
+var canvas, ctx,
   sampler,
-  ctx,
-  vor,
-  mesh,
-  Wpx,
-  Hpx,
-  Wkm,
-  Hkm;
+  vor, mesh,
+  Wpx, Hpx,
+  Wkm, Hkm;
+
+var h
+
+export function getHeight() {return h.slice()}
+export function getMesh() {return mesh}
+export function getER() {
+  const ER = erosionRate(mesh, h)
+  return peaky(ER)
+}
+
 
 
 export default async function (event) {
 
-  mesh = await setup(100, 100, 0.7)
+  mesh = await setup(50, 50, 1.7)
   // const {points, triangles, halfedges} = mesh
 
   console.log(mesh)
-  let h = await genHM(mesh)
+  h = await genHM(mesh)
 
   // exportMesh(mesh, getSlope(mesh, h), getFlux(mesh, h), downhill(mesh, h))
 
@@ -60,11 +67,11 @@ export default async function (event) {
   setTimeout(() => {
     let box = BABYLON.MeshBuilder.CreatePlane("", {width: 0.9, height: 0.9}, window.scene);
     let box2 = BABYLON.MeshBuilder.CreatePlane("", {width: 1.5, height: 2.5}, window.scene);
-    let box3 = BABYLON.MeshBuilder.CreatePlane("", {width: 1.5, height: 2.5}, window.scene);
+    let box3 = BABYLON.MeshBuilder.CreatePlane("", {width: 2.5, height: 1.5}, window.scene);
     box2.position.z = -3
     box3.position.z = -3
 
-    window.addEventListener("click", (e) => {
+    canvas.addEventListener("click", (e) => {
       const scene = window.scene
       let X,Y
       const {hit, pickedPoint, pickedMesh} = scene.pick(scene.pointerX, scene.pointerY);
@@ -87,8 +94,8 @@ export default async function (event) {
       highlight[t] = 1.0
       updateColorsFun(highlight)
 
-      // let t_2 = pt2triangle_animated(mesh, [X, Y], box2)
-      // let t_3 = pt2triangle_grid_animated(mesh, [X, Y], box3)
+      let t_2 = pt2triangle_animated(mesh, [X, Y], box2)
+      let t_3 = pt2triangle_grid_animated(mesh, [X, Y], box3)
 
       console.time("point loc naive")
       let t_ = pt2triangle_naive(mesh, [X, Y])
