@@ -42,6 +42,7 @@ export function getER() {
   return peaky(ER)
 }
 export var showCities
+export var cities
 
 
 
@@ -119,7 +120,7 @@ export async function renderMapGL(mesh, h) {
   renderCoastLine(mesh, h, 0, true, BABYLON.Color3.Black())
 
   showCities = () => {
-    const cities = placeCities(mesh, h, 20)
+    cities = placeCities(mesh, h, 20)
     renderCitiesGL(mesh, cities, 10)
   }
 
@@ -139,7 +140,7 @@ async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
   Wkm = Wkm_
   Hkm = Hkm_
   const ratio = Wkm / Hkm;
-  Hpx = window.outerHeight * 0.85;
+  Hpx = window.outerHeight * 0.90;
   Wpx = Hpx * ratio
   if (Wpx > window.outerWidth * 0.95) {
     Wpx = window.outerWidth * 0.95

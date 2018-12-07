@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-toolbar app>
+    <v-toolbar v-if="false" app>
       <v-toolbar-title class="headline text-uppercase">
         <span>Map </span>
         <span class="font-weight-light">Generator</span>
@@ -16,6 +16,33 @@
 
     <!--<v-spacer></v-spacer>-->
 
+    <v-navigation-drawer permanent app v-model="drawer">
+      <v-toolbar flat>
+        <v-list>
+          <v-list-tile>
+            <v-list-tile-title class="headline text-uppercase">
+              Map
+              <span class="font-weight-light">Generator</span>
+
+            </v-list-tile-title>
+          </v-list-tile>
+        </v-list>
+      </v-toolbar>
+
+
+        <v-container>
+          <v-layout column="true" >
+            <v-btn color="info" @click="setHeight">Height Map</v-btn>
+            <v-btn color="info" @click="setER">Erosion Rate</v-btn>
+            <v-btn color="info" @click="setFlux">Water Flux</v-btn>
+            <v-btn color="info" @click="setSlope">Slope</v-btn>
+            <v-btn color="info" @click="setCityScore">City Score</v-btn>
+            <v-btn color="info" @click="setCities">Place Cities</v-btn>
+            <v-btn color="error" @click="regen">Regen</v-btn>
+          </v-layout>
+        </v-container>
+
+    </v-navigation-drawer>
     <!--<Drawer/>-->
 
     <v-content>
@@ -45,9 +72,9 @@
   import Drawer from './components/Drawer'
   import { mapState } from 'vuex'
   import {updateColorsFun} from "./map_gen/render/webgl";
-  import {getER, getHeight, getMesh, showCities} from "./map_gen/map_gen";
+  import {cities, getER, getHeight, getMesh, showCities} from "./map_gen/map_gen";
   import mapGen from './map_gen/map_gen'
-  import {getFlux, getSlope, normalize, peaky} from "./map_gen/heightmap";
+  import {cityScore, getFlux, getSlope, normalize, peaky} from "./map_gen/heightmap";
 
   export default {
     name: 'App',
@@ -96,6 +123,10 @@
       },
       setCities() {
         showCities()
+      },
+      setCityScore() {
+        const vals = (normalize(cityScore(getMesh(), getHeight(), cities), 0.2))
+        updateColorsFun(vals)
       }
     },
     computed: mapState(["positions"]),
