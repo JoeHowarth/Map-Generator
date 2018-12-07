@@ -4,7 +4,6 @@ import { heightToColor, heightToColorArr } from './render-map'
 
 
 function createScene(mesh, h) {
-  console.log('create scene, mesh h', mesh, h)
 
   // Create a basic BJS Scene object
   var scene = new BABYLON.Scene(engine);
@@ -133,6 +132,7 @@ export async function init_babylon(mesh, h) {
   scene = createScene(mesh, h);
 
   window.scene = scene
+  scene.preventDefaultOnPointerDown = false;
 
   // run the render loop
   engine.runRenderLoop(function () {
@@ -183,7 +183,7 @@ function updateColors (colors, mesh, mapMesh, h) {
 
 
 function indecesFromMesh(mesh) {
-  console.log(mesh.triangles);
+  // console.log(mesh.triangles);
   const { triangles } = mesh;
   let inds = []
   for (let i = 0; i < triangles.length - 2; i += 3) {

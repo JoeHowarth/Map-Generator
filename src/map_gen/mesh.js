@@ -2,6 +2,7 @@ import * as d3 from 'd3'
 import { drawPoly } from './map-utils'
 import { genRenderFns, heightToColor } from './render/render-map'
 import { normalize } from './heightmap'
+import {init_grid} from "./planar-point-by-vec";
 
 const defaultExtent = [[0, 0], [800, 500]]
 
@@ -59,6 +60,11 @@ async function makeMesh(vor, ctx, [Wkm, Hkm], [Wpx, Hpx]) {
     return [points[i * 2], points[i * 2 + 1]]
   }
 
+  mesh.point_km_triIDs = i => {
+    i = mesh.triIDs[i]
+    return [points[i * 2], points[i * 2 + 1]]
+  }
+
   mesh.points_px = mesh.points.map(x => x * mesh.km2px)
   mesh.point_px = i => {
     return [mesh.points_px[i * 2], mesh.points_px[i * 2 + 1]]
@@ -108,9 +114,9 @@ async function makeMesh(vor, ctx, [Wkm, Hkm], [Wpx, Hpx]) {
   mesh.trislope = triSlope(mesh)
 
 
-  const triPathsPx = mesh.triPaths.map(mesh.pt_km2px)
   mesh = genRenderFns(mesh, ctx)
 
+  init_grid(mesh)
 
   console.timeEnd('everything else in makeMesh')
   console.timeEnd('makeMesh')
@@ -183,6 +189,54 @@ function calcAdj(mesh) {
   return adj
 }
 
+export function calcAdjVerts(mesh) {
+  const { halfedges, invTriIDs } = mesh
+  let adj = []
+  for (let i = 0; i < halfedges.length; i++) {
+    let e0 = i;
+    let t0_ = invTriIDs.get(edge2tri(i)) // make sure 'good' triangle (necessary?)
+    if (t0_ === undefined) continue
+
+    let e1 = halfedges[e0]
+    if (e1 === -1) continue
+
+    let t1_ = invTriIDs.get(edge2tri(e1))
+    if (t1_ === undefined) continue
+
+    // store point ids
+
+    let p0 = mesh.triangles[e0]
+    let p1 = mesh.triangles[e1]
+
+    adj[p0] = adj[p0] || [];
+    if (!adj[p0].includes(p1)) {
+      adj[p0].push(p1);
+    }
+    adj[p1] = adj[p1] || [];
+    if (!adj[p1].includes(p0)) {
+      adj[p1].push(p0);
+    }
+
+    // store edge ids
+    // adj[e0] = adj[e0] || [];
+    // if (!adj[e0].includes(e1)) {
+    //   adj[e0].push(e1);
+    // }
+    // adj[e1] = adj[e1] || [];
+    // if (!adj[e1].includes(e0)) {
+    //   adj[e1].push(e0);
+    // }
+  }
+
+  for (let i = 0; i < mesh.points.length / 2; i++ ) {
+    if (!adj[i]) {
+      adj[i] = []
+    }
+  }
+  return adj
+
+}
+
 function triSlope(mesh) {
   return (h, i) => {
     let nbs = mesh.adj[i]
@@ -224,7 +278,7 @@ function calcNormPts(mesh) {
   return normPts.map(v => [v[0] * 2.0 - 1.0, v[1] * 2 - 1])
 }
 
-function lengthSquared([ax, ay], [bx, by]) {
+export function lengthSquared([ax, ay], [bx, by]) {
   let dx = ax - bx
   let dy = ay - by
   return dx * dx + dy * dy

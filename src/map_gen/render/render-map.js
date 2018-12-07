@@ -85,7 +85,7 @@ export async function renderRiversGL(mesh, h, limit, scene) {
 }
 
 
-export async function renderCitiesGL(mesh, cities) {
+export async function renderCitiesGL(mesh, cities, res) {
   let sites = cities.map(i => mesh.centroids[i])
 
 
@@ -94,7 +94,7 @@ export async function renderCitiesGL(mesh, cities) {
     height: Math.min(mesh.Dkm[1], 512),
   }
 
-  const write = drawText(dim, {color: "white"})
+  const write = drawText(dim, {color: "white", res: res})
 
 
   let num_cities = Math.min(sites.length, 5)
@@ -102,16 +102,19 @@ export async function renderCitiesGL(mesh, cities) {
   for (let i = 0; i < num_cities; i++) {
     let [x, y] = sites[i]
 
-    write("city", x, y, 200)
+    write("City", x, y, 200)
     let box = BABYLON.MeshBuilder.CreatePlane("city box", {width: 2, height: 2,}, window.scene);
     box.position = new BABYLON.Vector3(x, y, -3);
   }
 
   for (let i = num_cities; i < cities.length - num_cities; i++) {
     let [x, y] = sites[i]
-    let box = BABYLON.MeshBuilder.CreatePlane("city box", {width: 1.3, height: 1.3,}, window.scene);
+    write("Town", x, y, 100)
+    let box = BABYLON.MeshBuilder.CreatePlane("town box", {width: 1.3, height: 1.3,}, window.scene);
     box.position = new BABYLON.Vector3(x, y, -3);
   }
+
+
 }
 
 export function displayIDs(mesh) {

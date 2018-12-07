@@ -1,26 +1,10 @@
-# vue-client
+# Map Generation Project
+### By Joe Howarth
 
-## Project setup
-```
-npm install
-```
+## Purpose
+This project seeks to procedurally create plausible geography and display it as a map.
+The generator will be used to generate the starting conditions for a historical population dynamics simulation.
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
-
-### Compiles and minifies for production
-```
-npm run build
-```
-
-### Run your tests
-```
-npm run test
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
+## Methodology
+Unlike many map and terrain generators, this project does not use noise as the fundamental building block.
+Instead, it uses a Delaunay triangulation over semi-random points, then combines elevation

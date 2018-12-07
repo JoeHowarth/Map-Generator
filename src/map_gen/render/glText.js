@@ -2,11 +2,14 @@ import * as d3 from 'd3'
 import metrics from './OpenSans-Regular'
 import * as BABYLON from 'babylonjs'
 
-export function drawText(dim, {color, pos, res} = {color: "white", res: 20}) {
+export function drawText(dim, {color, pos, res} = {color: "white"}) {
   const {width, height} = dim
   if (!pos) {
     pos = {x: width / 2, y: height / 2, z: -10}
   }
+  console.log(res)
+  res = res ? res : 20
+  console.log(res)
 
   let textPlane = BABYLON.MeshBuilder.CreatePlane('textPlane', dim, window.scene)
 
@@ -34,18 +37,19 @@ export function drawText(dim, {color, pos, res} = {color: "white", res: 20}) {
 
   const size_scale = res / 40
   return ((message, x, y, size) => {
-    textText.drawText(message, x * res, (height - y) * res, (size * size_scale)+ "px sans-serif", color, null, true)
+    textText.drawText(message, x * res, (height - y) * res, (size * size_scale) + "px sans-serif", color, null, true)
   })
 }
+
 function createText(size) {
   const str = "Hello World"
 
-  let vertexElements =[]
-  let textureElements =[]
+  let vertexElements = []
+  let textureElements = []
 
   let dimensions = measureText(str, size);
 
-  var pen = { x: canvas.width / 2 - dimensions.advance / 2, y: canvas.height / 2 };
+  var pen = {x: canvas.width / 2 - dimensions.advance / 2, y: canvas.height / 2};
   // let pen = {x: 20, y: 20}
   for (var i = 0; i < str.length; i++) {
     var chr = str[i];
@@ -67,9 +71,9 @@ function createText(size) {
 
 function sdf() {
   const sdf_mat = new BABYLON.ShaderMaterial("text", window.scene, {
-    vertex: "sdf",
-    fragment: "sdf",
-  },
+      vertex: "sdf",
+      fragment: "sdf",
+    },
     {
       attributes: ["a_pos", "a_texcoord"],
       uniforms: [
@@ -82,6 +86,7 @@ function sdf() {
       ],
     });
 }
+
 function measureText(text, size) {
   var dimensions = {
     advance: 0

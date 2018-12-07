@@ -14,6 +14,14 @@ import {
 import {init_babylon} from './render/webgl'
 import {makeMesh} from "./mesh";
 import store from '../store'
+import {refinement} from "./kirkpatrick";
+import {
+  pt2triangle,
+  pt2triangle_animated,
+  pt2triangle_grid_animated,
+  pt2triangle_naive,
+  pt2triangle_no_grid
+} from "./planar-point-by-vec";
 
 const WEBGL = true;
 
@@ -30,15 +38,71 @@ var canvas,
 
 export default async function (event) {
 
-  mesh = await setup(100, 100, 1.8)
+  mesh = await setup(200, 200, 0.4)
   // const {points, triangles, halfedges} = mesh
 
   console.log(mesh)
   let h = await genHM(mesh)
 
-  exportMesh(mesh, getSlope(mesh, h), getFlux(mesh, h), downhill(mesh, h))
+  // exportMesh(mesh, getSlope(mesh, h), getFlux(mesh, h), downhill(mesh, h))
+
+  // console.time("refinement")
+  // refinement(mesh)
+  // console.timeEnd("refinement")
 
   setTimeout(() => renderMapGL(mesh, h), 10)
+
+  console.log("Dfakasacckvjaxcvkjvk")
+  const click_loc = [13, 10]
+
+
+  setTimeout(() => {
+    let box = BABYLON.MeshBuilder.CreatePlane("", {width: 0.9, height: 0.9}, window.scene);
+    let box2 = BABYLON.MeshBuilder.CreatePlane("", {width: 1.5, height: 2.5}, window.scene);
+    let box3 = BABYLON.MeshBuilder.CreatePlane("", {width: 1.5, height: 2.5}, window.scene);
+    box2.position.z = -3
+    box3.position.z = -3
+
+    window.addEventListener("click", (e) => {
+      const scene = window.scene
+      // const {x, y} = getMousePos(canvas, e)
+
+      // const X = x * mesh.px2km
+      // const Y = mesh.Dkm[1] - y * mesh.px2km
+      let X,Y
+
+      const {hit, pickedPoint, pickedMesh} = scene.pick(scene.pointerX, scene.pointerY);
+      if (hit) {
+        X = pickedPoint.x
+        Y = pickedPoint.y
+      }
+
+      console.log(window.scene.pointerX, window.scene.pointerY)
+
+
+      console.time("point loc no_grid")
+      let t_1 = pt2triangle_no_grid(mesh, [X, Y])
+      console.timeEnd("point loc no_grid")
+
+      console.time("grid ")
+      let t = pt2triangle(mesh, [X, Y], box2)
+      console.timeEnd("grid ")
+
+      let t_2 = pt2triangle_animated(mesh, [X, Y], box2)
+      let t_3 = pt2triangle_grid_animated(mesh, [X, Y], box3)
+
+      console.time("point loc naive")
+      let t_ = pt2triangle_naive(mesh, [X, Y])
+      console.timeEnd("point loc naive")
+
+      // console.log("triangle", t, t_1, t_)
+      box.position = new BABYLON.Vector3(X, Y, -3);
+    }, {capture: true})
+
+  }, 11);
+
+  console.log("num_tris", mesh.triIDs.length)
+
 };
 
 
@@ -48,11 +112,10 @@ export async function renderMapGL(mesh, h) {
   await renderRiversGL(mesh, h, 0.01, scene)
   renderCoastLine(mesh, h, 0, true, BABYLON.Color3.Black())
   setTimeout(async () => {
-    const cities = placeCities(mesh, h, 20)
-    // renderCitiesGL(mesh, cities)
+    // const cities = placeCities(mesh, h, 20)
+    // renderCitiesGL(mesh, cities, 10)
   }, 10)
-  setTimeout(() => displayIDs(mesh), 0);
-
+  // setTimeout(() => displayIDs(mesh), 0);
 
 
   renderCoastLine(mesh, h, 0.3, true)
@@ -149,4 +212,15 @@ function exportToJsonFile(jsonData) {
   linkElement.setAttribute('href', dataUri);
   linkElement.setAttribute('download', exportFileDefaultName);
   linkElement.click();
+}
+
+function getMousePos(canvas, evt) {
+  var rect = canvas.getBoundingClientRect(), // abs. size of element
+    scaleX = canvas.width / rect.width,    // relationship bitmap vs. element for X
+    scaleY = canvas.height / rect.height;  // relationship bitmap vs. element for Y
+
+  return {
+    x: (evt.clientX - rect.left) * scaleX,   // scale mouse coordinates after they have
+    y: (evt.clientY - rect.top) * scaleY     // been adjusted to be relative to element
+  }
 }
