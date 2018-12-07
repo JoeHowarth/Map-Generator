@@ -94,6 +94,7 @@ function createScene(mesh, h) {
   //   updateColors(colors, mesh, mapMesh, h)
   // })
 
+  updateColorsFun = (h) => updateColors(colors, mesh, mapMesh, h)
 
   let red_wire = new BABYLON.StandardMaterial('wire', scene)
   red_wire.wireframe = true
@@ -110,6 +111,8 @@ function createScene(mesh, h) {
   // Return the created scene
   return scene;
 }
+
+export let updateColorsFun;
 
 
 

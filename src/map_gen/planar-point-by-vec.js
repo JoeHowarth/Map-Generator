@@ -2,6 +2,40 @@ import {lengthSquared} from "./mesh";
 import * as d3 from "d3";
 
 
+let last_tri = 0
+// returns index of triangle containing pt
+// uses grid to speed up search
+export function pt2triangle(mesh, pt) {
+
+  // console.log(distanceSquared(mesh, pt, last_tri), grid_dist)
+  if (distanceSquared(mesh, pt, last_tri) > grid_dist) {
+    const idx = Math.floor(pt[0] / grid_dist)
+    const idy = Math.floor(pt[1] / grid_dist)
+    last_tri = grid[idx][idy] === -1 ? last_tri : grid[idx][idy]
+
+  }
+
+  let t = last_tri
+  let count = 0
+  let {pointInTriangleW, memoVisited} = pointInTriangleMemo(mesh, pt)
+  while (!pointInTriangleW(t) && count < 20000) {
+    let nbs = mesh.adj[t]
+    let min = 888888
+    for (let i = 0; i < nbs.length; i++) {
+      if (memoVisited[nbs[i]]) continue;
+
+      let d = distanceSquared(mesh, pt, nbs[i])
+      if (d < min) {
+        min = d
+        t = nbs[i]
+      }
+    }
+    count++
+  }
+
+  last_tri = t
+  return t
+}
 
 
 let grid // hash location to triangle
@@ -66,42 +100,7 @@ function pointInTriangle(pt, v1, v2, v3) {
 }
 
 
-let last_tri = 0
 
-export function pt2triangle(mesh, pt, box) {
-
-  // console.log(distanceSquared(mesh, pt, last_tri), grid_dist)
-  if (distanceSquared(mesh, pt, last_tri) > grid_dist) {
-    const idx = Math.floor(pt[0] / grid_dist)
-    const idy = Math.floor(pt[1] / grid_dist)
-    last_tri = grid[idx][idy] === -1 ? last_tri : grid[idx][idy]
-
-  }
-
-  // let [x,y] = mesh.centroids[last_tri]
-  // box.position = new BABYLON.Vector3(x,y,-3)
-
-  let t = last_tri
-  let count = 0
-  let {pointInTriangleW, memoVisited} = pointInTriangleMemo(mesh, pt)
-  while (!pointInTriangleW(t) && count < 20000) {
-    let nbs = mesh.adj[t]
-    let min = 888888
-    for (let i = 0; i < nbs.length; i++) {
-      if (memoVisited[nbs[i]]) continue;
-
-      let d = distanceSquared(mesh, pt, nbs[i])
-      if (d < min) {
-        min = d
-        t = nbs[i]
-      }
-    }
-    count++
-  }
-
-  last_tri = t
-  return t
-}
 
 let last_tri_no_grid = 0
 
@@ -241,4 +240,11 @@ export function pt2triangle_naive(mesh, pt) {
 function distanceSquared(mesh, [x, y], t) {
   let [x2, y2] = mesh.centroids[t]
   return lengthSquared([x, y], [x2, y2])
+}
+
+let last_query = [0,0]
+export function dist_from_last_query(pt) {
+  const ret = Math.sqrt(lengthSquared(last_query, pt))
+  last_query = pt
+  return ret
 }

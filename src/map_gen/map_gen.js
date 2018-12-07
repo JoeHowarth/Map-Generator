@@ -11,11 +11,12 @@ import {
   placeCities,
   downhill, getFlux, getSlope, getRivers,
 } from './heightmap'
-import {init_babylon} from './render/webgl'
+import {init_babylon, updateColorsFun} from './render/webgl'
 import {makeMesh} from "./mesh";
 import store from '../store'
 import {refinement} from "./kirkpatrick";
 import {
+  dist_from_last_query,
   pt2triangle,
   pt2triangle_animated,
   pt2triangle_grid_animated,
@@ -38,7 +39,7 @@ var canvas,
 
 export default async function (event) {
 
-  mesh = await setup(200, 200, 0.4)
+  mesh = await setup(100, 100, 0.7)
   // const {points, triangles, halfedges} = mesh
 
   console.log(mesh)
@@ -50,7 +51,7 @@ export default async function (event) {
   // refinement(mesh)
   // console.timeEnd("refinement")
 
-  setTimeout(() => renderMapGL(mesh, h), 10)
+  setTimeout(() => renderMapGL(mesh, h), 0)
 
   console.log("Dfakasacckvjaxcvkjvk")
   const click_loc = [13, 10]
@@ -65,20 +66,14 @@ export default async function (event) {
 
     window.addEventListener("click", (e) => {
       const scene = window.scene
-      // const {x, y} = getMousePos(canvas, e)
-
-      // const X = x * mesh.px2km
-      // const Y = mesh.Dkm[1] - y * mesh.px2km
       let X,Y
-
       const {hit, pickedPoint, pickedMesh} = scene.pick(scene.pointerX, scene.pointerY);
       if (hit) {
         X = pickedPoint.x
         Y = pickedPoint.y
       }
 
-      console.log(window.scene.pointerX, window.scene.pointerY)
-
+      console.log('dist from last Q', dist_from_last_query([X,Y]))
 
       console.time("point loc no_grid")
       let t_1 = pt2triangle_no_grid(mesh, [X, Y])
@@ -88,8 +83,12 @@ export default async function (event) {
       let t = pt2triangle(mesh, [X, Y], box2)
       console.timeEnd("grid ")
 
-      let t_2 = pt2triangle_animated(mesh, [X, Y], box2)
-      let t_3 = pt2triangle_grid_animated(mesh, [X, Y], box3)
+      let highlight = h.slice()
+      highlight[t] = 1.0
+      updateColorsFun(highlight)
+
+      // let t_2 = pt2triangle_animated(mesh, [X, Y], box2)
+      // let t_3 = pt2triangle_grid_animated(mesh, [X, Y], box3)
 
       console.time("point loc naive")
       let t_ = pt2triangle_naive(mesh, [X, Y])
@@ -99,7 +98,7 @@ export default async function (event) {
       box.position = new BABYLON.Vector3(X, Y, -3);
     }, {capture: true})
 
-  }, 11);
+  }, 2);
 
   console.log("num_tris", mesh.triIDs.length)
 
@@ -118,7 +117,7 @@ export async function renderMapGL(mesh, h) {
   // setTimeout(() => displayIDs(mesh), 0);
 
 
-  renderCoastLine(mesh, h, 0.3, true)
+  renderCoastLine(mesh, h, 0.20, true)
 }
 
 /* gets canvas ctx, generates points, sets scale transforms
@@ -129,10 +128,10 @@ async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
   Wkm = Wkm_
   Hkm = Hkm_
   const ratio = Wkm / Hkm;
-  Hpx = window.outerHeight * 0.85;
+  Hpx = window.outerHeight * 0.95;
   Wpx = Hpx * ratio
-  if (Wpx > window.outerWidth * 0.9) {
-    Wpx = window.outerWidth * 0.9
+  if (Wpx > window.outerWidth * 0.95) {
+    Wpx = window.outerWidth * 0.95
     Hpx = Wpx / ratio
   }
 
@@ -158,7 +157,7 @@ async function setup(Wkm_ = 100, Hkm_ = 100, density = 1) {
   console.time("sample points")
 
   let points = [];
-  const max_points = 1000000;
+  const max_points = 10000000;
   // let pts = await getPoisson(num_per_gen, sampler);
   let i = 0
   for (let s; i < max_points && (s = sampler()); i++) {

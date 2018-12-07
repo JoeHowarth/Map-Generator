@@ -21,12 +21,12 @@ async function genHM(mesh) {
 
 
   let h = add(
-    // slope(mesh, randDir(), 1.5),
+    slope(mesh, randDir(), 0.5),
     // cone(mesh, rand(-1.0, -0.5) * 0.0005, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
     // cone(mesh, 0.01, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
     // cone(mesh, 0.010, [rnorm(W/2, W/8), rnorm(H/2, H/8) ]),
     // cone(mesh, 0.005, [rnorm(W/2, W/6), rnorm(H/2, H/6) ]),
-    cone(mesh, 0.002, [rnorm(W / 2, W / 3), rnorm(H / 2, H / 3)]),
+    cone(mesh, 0.0015, [rnorm(W / 2, W / 3), rnorm(H / 2, H / 3)]),
     mountains(mesh, shNum, 5, 0.7),
     mountains(mesh, shNum, 5, 0.7),
     mountains(mesh, rhNum, 8, 0.4),
